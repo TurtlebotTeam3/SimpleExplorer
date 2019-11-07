@@ -1,6 +1,4 @@
 <launch>
-<node pkg="simple explorer" type="simpleExplorer.py" name="simple explorer" output="screen">
-</node>
-<node pkg="simple explorer" type="subscriber.py" name="topic_subscriber" output="screen">
+<node pkg="simple_explorer" type="explorer.py" name="Simple Explorer" output="screen">
 </node>
 </launch>
