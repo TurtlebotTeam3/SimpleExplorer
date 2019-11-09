@@ -19,7 +19,7 @@ class Explorer:
         self.is_searching_unknown_space = False
         self.scan = []
         self.waypoints = []
-        self.robot_radius = 4
+        self.robot_radius = 3
         self.map_resolution = 0
         self.robot_x = 0
         self.robot_y = 0
@@ -72,14 +72,14 @@ class Explorer:
         for row in range(1, num_rows - 1):
             for col in range(1, num_cols - 1):
                 if map[row][col] == 0:
-                    if map[row - 1][col] == -1:
-                        return col, row - 1
-                    if map[row + 1][col] == -1:
-                        return col, row + 1
-                    if map[row][col - 1] == -1:
-                        return col - 1, row
-                    if map[row][col + 1] == -1:
-                        return col + 1, row
+                    if map[row - 1][col] == -1 and not any(map[row, col - self.robot_radius : col + self.robot_radius] == 100):
+                        return col, row
+                    if map[row + 1][col] == -1 and not any(map[row, col - self.robot_radius : col + self.robot_radius] == 100):
+                        return col, row
+                    if map[row][col - 1] == -1 and not any(map[row - self.robot_radius : row + self.robot_radius, col] == 100):
+                        return col , row
+                    if map[row][col + 1] == -1 and not any(map[row - self.robot_radius : row + self.robot_radius, col] == 100):
+                        return col , row
 
     def _navigate(self):
         # check if waypoints are available
@@ -111,7 +111,7 @@ class Explorer:
         goal.target_pose.pose.position.y = target_y
         goal.target_pose.pose.orientation.w = 1
         self.move_base_client.send_goal(goal)
-        success = self.move_base_client.wait_for_result()
+        success = self.move_base_client.wait_for_result(rospy.Duration(30))
         #When success then go to next waypoint otherwise stop navigating and check map
         if success:
             print('Reached: ' + str(x) + ' | ' + str(y))

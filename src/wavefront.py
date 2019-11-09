@@ -30,7 +30,7 @@ class Wavefront:
                 run = False
         return map
 
-    def _find_path(self, map, xStart, yStart):
+    def _find_path(self, map, xStart, yStart, radius):
         """
         """
         currentX = xStart
@@ -40,11 +40,12 @@ class Wavefront:
         direction = 'v'
         #currentValue = -2
         waypoints = []
+        firstWayPoint = True
 
         run = True
         while run == True:
             nextLowestAdjeacent = self._get_next_lowest_adjeacent(
-                map, currentX, currentY)
+                map, currentX, currentY, radius)
 
             if nextLowestAdjeacent[2] != 2:
                 lastX = currentX
@@ -57,11 +58,16 @@ class Wavefront:
 
                 direction_changed, direction = self._detect_direction_change(direction, currentX, currentY, lastX, lastY)
                 if direction_changed:
-                    waypoints.append((lastX, lastY))
+                    if firstWayPoint:
+                        firstWayPoint = False
+                    else:
+                        waypoints.append((lastX, lastY))
+                        if len(waypoints) >= 2:
+                            run = False
 
             elif (nextLowestAdjeacent[2]) == 2:
                 run = False
-        return map , waypoints[1:len(waypoints)]
+        return map , waypoints
 
     def _detect_direction_change(self, direction, current_x, current_y, last_x, last_y):
         """
@@ -109,7 +115,7 @@ class Wavefront:
 
         return highestAdjeacent
 
-    def _get_next_lowest_adjeacent(self, map, currentX, currentY):
+    def _get_next_lowest_adjeacent(self, map, currentX, currentY, radius):
         """
         """
         tempX = 0
@@ -124,22 +130,22 @@ class Wavefront:
             tempValue = map[currentY][currentX]
 
         # check top
-        if((map[currentY - 1][currentX]) == tempValue - 1):
+        if (map[currentY - 1][currentX]) == tempValue - 1:
             tempX = currentX
             tempY = currentY - 1
             tempValue = map[currentY - 1][currentX]
         # check bottom
-        if ((map[currentY + 1][currentX]) == tempValue - 1):
+        if (map[currentY + 1][currentX]) == tempValue - 1:
             tempX = currentX
             tempY = currentY + 1
             tempValue = map[currentY + 1][currentX]
         # check left
-        if ((map[currentY][currentX - 1]) == tempValue - 1):
+        if (map[currentY][currentX - 1]) == tempValue - 1:
             tempX = currentX - 1
             tempY = currentY
             tempValue = map[currentY][currentX - 1]
             # check right
-        if ((map[currentY][currentX + 1]) == tempValue - 1):
+        if (map[currentY][currentX + 1]) == tempValue - 1:
             tempX = currentX + 1
             tempY = currentY
             tempValue = map[currentY][currentX + 1]
@@ -148,7 +154,7 @@ class Wavefront:
 
         return nextA
 
-    def run(self, map, xGoal, yGoal, xStart, yStart):
+    def run(self, map, xGoal, yGoal, xStart, yStart, radius):
         """
         """
         map = cp.deepcopy(map)
@@ -160,6 +166,6 @@ class Wavefront:
 
         map = self._label_adjacent(map, xStart, yStart)
 
-        map, waypoints = self._find_path(map, xStart, yStart)
+        map, waypoints = self._find_path(map, xStart, yStart, radius)
 
         return waypoints
