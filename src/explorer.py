@@ -10,11 +10,13 @@ from sensor_msgs.msg._LaserScan import LaserScan
 from move_base_msgs.msg._MoveBaseGoal import MoveBaseGoal
 from wavefront import Wavefront
 import actionlib
-
+from tf import TransformListener
 
 class Explorer:
 
     def __init__(self):
+        rospy.init_node('explorer', anonymous=True)
+        
         self.is_navigating = False
         self.is_searching_unknown_space = False
         self.scan = []
@@ -25,9 +27,11 @@ class Explorer:
         self.robot_y = 0
         self.map_height = 0
         self.map_width = 0
+        self.map_offset_x = 0
+        self.map_offset_y = 0
         self.wavefront = Wavefront()
+        self.tf = TransformListener()
 
-        rospy.init_node('explorer', anonymous=True)
         self.move_base_client = actionlib.SimpleActionClient(
             'move_base', MoveBaseAction)
         self.odomSub = rospy.Subscriber('odom', Odometry, self._odom_callback)
@@ -43,6 +47,9 @@ class Explorer:
         self.map_resolution = data.info.resolution
         self.map_height = data.info.height
         self.map_width = data.info.width
+        self.map_offset_x = data.info.origin.position.x
+        self.map_offset_y = data.info.origin.position.y
+        
         # reshape the map
         map = np.reshape(data.data, (data.info.height, data.info.width))
         if not self.is_navigating and not self.is_searching_unknown_space:
@@ -62,23 +69,24 @@ class Explorer:
 
     def _odom_callback(self, odom):
         if self.map_resolution > 0:
+            # TODO: this seems not to be correct, robot is somewhere in the nowhere
             # convert from robot coordinates to map coordinates
-            self.robot_x = int(self.map_width/2 + odom.pose.pose.position.x/self.map_resolution)
-            self.robot_y = int(self.map_height/2 + odom.pose.pose.position.y/self.map_resolution)
+            self.robot_x = int(self.map_width/2 - self.map_offset_x + odom.pose.pose.position.x/self.map_resolution)
+            self.robot_y = int(self.map_height/2 - self.map_offset_y + odom.pose.pose.position.y/self.map_resolution)
 
     def _search_for_unknown_space(self, map):
         num_rows = len(map)
         num_cols = len(map[0])
-        for row in range(1, num_rows - 1):
-            for col in range(1, num_cols - 1):
+        for row in range(self.robot_radius, num_rows - self.robot_radius):
+            for col in range(self.robot_radius, num_cols - self.robot_radius):
                 if map[row][col] == 0:
-                    if map[row - 1][col] == -1 and not any(map[row, col - self.robot_radius : col + self.robot_radius] == 100):
+                    if map[row - 1][col] == -1 and not any(map[row, col - self.robot_radius : col + self.robot_radius + 1] == 100):
                         return col, row
-                    if map[row + 1][col] == -1 and not any(map[row, col - self.robot_radius : col + self.robot_radius] == 100):
+                    if map[row + 1][col] == -1 and not any(map[row, col - self.robot_radius : col + self.robot_radius + 1] == 100):
                         return col, row
-                    if map[row][col - 1] == -1 and not any(map[row - self.robot_radius : row + self.robot_radius, col] == 100):
+                    if map[row][col - 1] == -1 and not any(map[row - self.robot_radius : row + self.robot_radius + 1, col] == 100):
                         return col , row
-                    if map[row][col + 1] == -1 and not any(map[row - self.robot_radius : row + self.robot_radius, col] == 100):
+                    if map[row][col + 1] == -1 and not any(map[row - self.robot_radius : row + self.robot_radius + 1, col] == 100):
                         return col , row
 
     def _navigate(self):
@@ -104,14 +112,15 @@ class Explorer:
         goal.target_pose.header.frame_id = "base_link"
         goal.target_pose.header.stamp = rospy.Time.now()
 
-        target_x = (x - self.map_width/2.0) * self.map_resolution
-        target_y = (y - self.map_height/2.0) * self.map_resolution
+        # TODO: this seems not to be correct, targets are somewhere in the nowhere
+        target_x = (x - self.map_width/2.0 + self.map_offset_x) * self.map_resolution
+        target_y = (y - self.map_height/2.0 + self.map_offset_y) * self.map_resolution
 
         goal.target_pose.pose.position.x = target_x
         goal.target_pose.pose.position.y = target_y
         goal.target_pose.pose.orientation.w = 1
         self.move_base_client.send_goal(goal)
-        success = self.move_base_client.wait_for_result(rospy.Duration(30))
+        success = self.move_base_client.wait_for_result(rospy.Duration(15))
         #When success then go to next waypoint otherwise stop navigating and check map
         if success:
             print('Reached: ' + str(x) + ' | ' + str(y))
