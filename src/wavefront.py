@@ -62,8 +62,8 @@ class Wavefront:
                         firstWayPoint = False
                     else:
                         waypoints.append((lastX, lastY))
-                        if len(waypoints) >= 2:
-                            run = False
+                        # if len(waypoints) >= 2:
+                        #    run = False
 
             elif (nextLowestAdjeacent[2]) == 2:
                 run = False

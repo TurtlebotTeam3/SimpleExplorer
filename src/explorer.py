@@ -11,6 +11,7 @@ from move_base_msgs.msg._MoveBaseGoal import MoveBaseGoal
 from wavefront import Wavefront
 import actionlib
 from tf import TransformListener
+import copy
 
 class Explorer:
 
@@ -24,11 +25,15 @@ class Explorer:
         self.robot_radius = 3
         self.map_resolution = 0
         self.robot_x = 0
+        self.robot_x_pose = 0
         self.robot_y = 0
+        self.robot_y_pose = 0
         self.map_height = 0
         self.map_width = 0
         self.map_offset_x = 0
         self.map_offset_y = 0
+        self.map =[[]]
+        self.robot_pose_available = False
         self.wavefront = Wavefront()
         self.tf = TransformListener()
 
@@ -38,9 +43,7 @@ class Explorer:
         self.mapSub = rospy.Subscriber(
             'map', OccupancyGrid, self._map_callback)
         self.scanSub = rospy.Subscriber('scan', LaserScan, self._scan_callback)
-        
-        
-        
+
         rospy.spin()
 
     def _map_callback(self, data):
@@ -51,15 +54,15 @@ class Explorer:
         self.map_offset_y = data.info.origin.position.y
         
         # reshape the map
-        map = np.reshape(data.data, (data.info.height, data.info.width))
-        if not self.is_navigating and not self.is_searching_unknown_space:
+        self.map = np.reshape(data.data, (data.info.height, data.info.width))
+        if self.robot_pose_available and not self.is_navigating and not self.is_searching_unknown_space:
             self.is_searching_unknown_space = True
             # search for an unkown space
-            x, y = self._search_for_unknown_space(map)
+            x, y = self._search_for_unknown_space(copy.deepcopy(self.map))
             # get the waypoints to the unkown space
             print('Calculating waypoints')
             self.waypoints = self.wavefront.run(
-                map, x, y, self.robot_x, self.robot_y, self.robot_radius)
+                self.map, x, y, self.robot_x, self.robot_y, self.robot_radius)
             self.is_searching_unknown_space = False
             #start navigating
             self._navigate()
@@ -71,8 +74,11 @@ class Explorer:
         if self.map_resolution > 0:
             # TODO: this seems not to be correct, robot is somewhere in the nowhere
             # convert from robot coordinates to map coordinates
-            self.robot_x = int(self.map_width/2 - self.map_offset_x + odom.pose.pose.position.x/self.map_resolution)
-            self.robot_y = int(self.map_height/2 - self.map_offset_y + odom.pose.pose.position.y/self.map_resolution)
+            self.robot_x_pose = odom.pose.pose.position.x
+            self.robot_y_pose = odom.pose.pose.position.y
+            self.robot_x = int(self.map_width/2 + self.map_offset_x + self.robot_x_pose/self.map_resolution)
+            self.robot_y = int(self.map_height/2 + self.map_offset_y + self.robot_y_pose/self.map_resolution)
+            self.robot_pose_available = True
 
     def _search_for_unknown_space(self, map):
         num_rows = len(map)
@@ -109,12 +115,12 @@ class Explorer:
         """
         print('Navigate to: ' + str(x) + ' | ' + str(y))
         goal = MoveBaseGoal()
-        goal.target_pose.header.frame_id = "base_link"
+        goal.target_pose.header.frame_id = "map"
         goal.target_pose.header.stamp = rospy.Time.now()
 
         # TODO: this seems not to be correct, targets are somewhere in the nowhere
-        target_x = (x - self.map_width/2.0 + self.map_offset_x) * self.map_resolution
-        target_y = (y - self.map_height/2.0 + self.map_offset_y) * self.map_resolution
+        target_x = (x - self.map_width/2.0 - self.map_offset_x) * self.map_resolution
+        target_y = (y - self.map_height/2.0 - self.map_offset_y) * self.map_resolution
 
         goal.target_pose.pose.position.x = target_x
         goal.target_pose.pose.position.y = target_y
