@@ -22,7 +22,7 @@ class Explorer:
         self.is_searching_unknown_space = False
         self.scan = []
         self.waypoints = []
-        self.robot_radius = 3
+        self.robot_radius = 6
         self.map_resolution = 0
         self.robot_x = 0
         self.robot_x_pose = 0
@@ -76,8 +76,8 @@ class Explorer:
             # convert from robot coordinates to map coordinates
             self.robot_x_pose = odom.pose.pose.position.x
             self.robot_y_pose = odom.pose.pose.position.y
-            self.robot_x = int(self.map_width/2 + self.map_offset_x + self.robot_x_pose/self.map_resolution)
-            self.robot_y = int(self.map_height/2 + self.map_offset_y + self.robot_y_pose/self.map_resolution)
+            self.robot_x = int(self.map_width/2 - self.map_offset_x + self.robot_x_pose/self.map_resolution)
+            self.robot_y = int(self.map_height/2 - self.map_offset_y + self.robot_y_pose/self.map_resolution)
             self.robot_pose_available = True
 
     def _search_for_unknown_space(self, map):
@@ -86,13 +86,13 @@ class Explorer:
         for row in range(self.robot_radius, num_rows - self.robot_radius):
             for col in range(self.robot_radius, num_cols - self.robot_radius):
                 if map[row][col] == 0:
-                    if map[row - 1][col] == -1 and not any(map[row, col - self.robot_radius : col + self.robot_radius + 1] == 100):
+                    if map[row - 1][col] == -1 and not any(map[row, col - self.robot_radius : col + self.robot_radius + 1] == 100) and not any(map[row - self.robot_radius : row + self.robot_radius + 1 - self.robot_radius : row + self.robot_radius + 1, col] == 100):
                         return col, row
-                    if map[row + 1][col] == -1 and not any(map[row, col - self.robot_radius : col + self.robot_radius + 1] == 100):
+                    if map[row + 1][col] == -1 and not any(map[row, col - self.robot_radius : col + self.robot_radius + 1] == 100) and not any(map[row - self.robot_radius : row + self.robot_radius + 1 - self.robot_radius : row + self.robot_radius + 1, col] == 100):
                         return col, row
-                    if map[row][col - 1] == -1 and not any(map[row - self.robot_radius : row + self.robot_radius + 1, col] == 100):
+                    if map[row][col - 1] == -1 and not any(map[row - self.robot_radius : row + self.robot_radius + 1 - self.robot_radius : row + self.robot_radius + 1, col] == 100) and not any(map[row, col - self.robot_radius : col + self.robot_radius + 1] == 100):
                         return col , row
-                    if map[row][col + 1] == -1 and not any(map[row - self.robot_radius : row + self.robot_radius + 1, col] == 100):
+                    if map[row][col + 1] == -1 and not any(map[row - self.robot_radius : row + self.robot_radius + 1 - self.robot_radius : row + self.robot_radius + 1, col] == 100) and not any(map[row, col - self.robot_radius : col + self.robot_radius + 1] == 100):
                         return col , row
 
     def _navigate(self):
@@ -119,8 +119,8 @@ class Explorer:
         goal.target_pose.header.stamp = rospy.Time.now()
 
         # TODO: this seems not to be correct, targets are somewhere in the nowhere
-        target_x = (x - self.map_width/2.0 - self.map_offset_x) * self.map_resolution
-        target_y = (y - self.map_height/2.0 - self.map_offset_y) * self.map_resolution
+        target_x = (x - self.map_width/2.0 + self.map_offset_x) * self.map_resolution
+        target_y = (y - self.map_height/2.0 + self.map_offset_y) * self.map_resolution
 
         goal.target_pose.pose.position.x = target_x
         goal.target_pose.pose.position.y = target_y
