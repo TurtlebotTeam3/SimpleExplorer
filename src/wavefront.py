@@ -66,6 +66,7 @@ class Wavefront:
                         #    run = False
 
             elif (nextLowestAdjeacent[2]) == 2:
+                waypoints.append((currentX, currentY))
                 run = False
         return map , waypoints
 
