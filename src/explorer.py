@@ -12,6 +12,7 @@ from wavefront import Wavefront
 import actionlib
 from tf import TransformListener
 import copy
+import math
 
 class Explorer:
 
@@ -76,8 +77,8 @@ class Explorer:
             # convert from robot coordinates to map coordinates
             self.robot_x_pose = odom.pose.pose.position.x
             self.robot_y_pose = odom.pose.pose.position.y
-            self.robot_x = int(self.map_width/2 - self.map_offset_x + self.robot_x_pose/self.map_resolution)
-            self.robot_y = int(self.map_height/2 - self.map_offset_y + self.robot_y_pose/self.map_resolution)
+            self.robot_x = int(math.ceil(self.map_width/2 - self.map_offset_x + self.robot_x_pose/self.map_resolution))
+            self.robot_y = int(math.ceil(self.map_height/2 + self.map_offset_y + self.robot_y_pose/self.map_resolution))
             self.robot_pose_available = True
 
     def _search_for_unknown_space(self, map):
@@ -120,7 +121,7 @@ class Explorer:
 
         # TODO: this seems not to be correct, targets are somewhere in the nowhere
         target_x = (x - self.map_width/2.0 + self.map_offset_x) * self.map_resolution
-        target_y = (y - self.map_height/2.0 + self.map_offset_y) * self.map_resolution
+        target_y = (y - self.map_height/2.0 - self.map_offset_y) * self.map_resolution
 
         goal.target_pose.pose.position.x = target_x
         goal.target_pose.pose.position.y = target_y
