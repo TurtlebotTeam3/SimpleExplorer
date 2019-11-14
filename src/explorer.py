@@ -26,7 +26,7 @@ class Explorer:
         self.map_updated = False
         self.scan = []
         self.waypoints = []
-        self.robot_radius = 4
+        self.robot_radius = 5
         self.map_resolution = 0
         self.robot_x = 0
         self.robot_x_pose = 0
@@ -66,6 +66,8 @@ class Explorer:
             print('Calculating waypoints')
             self.waypoints = self.wavefront.run(
                 self.map, x, y, self.robot_x, self.robot_y, self.robot_radius)
+            # self.wavefront.findUnknown(self.map, self.robot_x, self.robot_y, self.robot_radius)
+            self.waypoints.append((x,y))
             self.is_searching_unknown_space = False
             #start navigating
             self._navigate()
@@ -110,10 +112,10 @@ class Explorer:
             # get waypoint and start moving towards it
             # when success the process next
             
-            # (x, y) = self.waypoints.pop(0) # visit all way points
+            (x, y) = self.waypoints.pop(0) # visit all way points
             # send final goal
-            (x, y) = self.waypoints[len(self.waypoints) - 1]
-            self.waypoints = []
+            # (x, y) = self.waypoints[len(self.waypoints) - 1]
+            # self.waypoints = []
 
             success = self._move(x, y)
             if not success:
@@ -141,7 +143,7 @@ class Explorer:
         goal.target_pose.pose.position.y = target_y
         goal.target_pose.pose.orientation.w = 1
         self.move_base_client.send_goal(goal)
-        success = self.move_base_client.wait_for_result(rospy.Duration(15))
+        success = self.move_base_client.wait_for_result(rospy.Duration(60))
         #When success then go to next waypoint otherwise stop navigating and check map
         if success:
             print('Reached: ' + str(x) + ' | ' + str(y))
