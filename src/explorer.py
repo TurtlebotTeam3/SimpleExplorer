@@ -8,6 +8,7 @@ from move_base_msgs.msg._MoveBaseAction import MoveBaseAction
 from nav_msgs.msg._Odometry import Odometry
 from sensor_msgs.msg._LaserScan import LaserScan
 from move_base_msgs.msg._MoveBaseGoal import MoveBaseGoal
+from geometry_msgs.msg import PointStamped
 from wavefront import Wavefront
 import actionlib
 from tf import TransformListener
@@ -26,7 +27,7 @@ class Explorer:
         self.map_updated = False
         self.scan = []
         self.waypoints = []
-        self.robot_radius = 5
+        self.robot_radius = 1
         self.map_resolution = 0
         self.robot_x = 0
         self.robot_x_pose = 0
@@ -46,6 +47,7 @@ class Explorer:
         self.mapSub = rospy.Subscriber(
             'map', OccupancyGrid, self._map_callback)
         self.scanSub = rospy.Subscriber('scan', LaserScan, self._scan_callback)
+        self.pub_point = rospy.Publisher('clicked_point',PointStamped)
 
         rospy.spin()
 
@@ -57,20 +59,42 @@ class Explorer:
         self.map_offset_y = data.info.origin.position.y
         
         # reshape the map
-        self.map = np.reshape(data.data, (data.info.height, data.info.width))
+        map = np.reshape(data.data, (data.info.height, data.info.width))
+        self._map_update(map)
+       
+
+    def _map_update(self, map):
         if self.robot_pose_available and not self.is_navigating and not self.is_searching_unknown_space:
             self.is_searching_unknown_space = True
+            # blow up map
+            map = self._blow_up_map(map)
             # search for an unkown space
-            x, y = self._search_for_unknown_space(copy.deepcopy(self.map))
-            # get the waypoints to the unkown space
+            # x, y = self._search_for_unknown_space(map)
             print('Calculating waypoints')
-            self.waypoints = self.wavefront.run(
-                self.map, x, y, self.robot_x, self.robot_y, self.robot_radius)
+            self.waypoints = self.wavefront.findUnknown(map,self.robot_x, self.robot_y, self.robot_radius)
+            # get the waypoints to the unkown space
+            
+            #self.waypoints = self.wavefront.run(
+            #     map, x, y, self.robot_x, self.robot_y, self.robot_radius)
             # self.wavefront.findUnknown(self.map, self.robot_x, self.robot_y, self.robot_radius)
-            self.waypoints.append((x,y))
+            # self.waypoints.append((x,y))
+
+            for (x, y) in self.waypoints:
+                self._publish_point(x, y)
+
             self.is_searching_unknown_space = False
             #start navigating
             self._navigate()
+
+    def _blow_up_map(self, map):
+        #blow up walls
+        blowUpCellNum = 1
+        tmp_map = copy.deepcopy(map)
+        for row in range(0, len(tmp_map)):
+            for col in range(0 , len(tmp_map[0])):
+                if map[row,col] == 100 and row >= blowUpCellNum and col >= blowUpCellNum and row <= len(tmp_map) - blowUpCellNum and col <= len(tmp_map[0]) - blowUpCellNum:
+                    tmp_map[row - blowUpCellNum : row + blowUpCellNum, col - blowUpCellNum : col + blowUpCellNum] = 100
+        return tmp_map
 
     def _scan_callback(self, scan):
         pass
@@ -95,6 +119,7 @@ class Explorer:
         for row in range(self.robot_radius, num_rows - self.robot_radius):
             for col in range(self.robot_radius, num_cols - self.robot_radius):
                 if map[row][col] == 0:
+                    print('row: ' + str(row) + ' col: ' + str(col))
                     surrounding_any_wall = map[row - self.robot_radius : row + self.robot_radius + 1, col - self.robot_radius : col + self.robot_radius + 1] == 100
                     if map[row - 1][col] == -1 and not any(np.any(surrounding_any_wall, axis = 0)) and not any(np.any(surrounding_any_wall, axis = 1)):
                         return col, row
@@ -151,6 +176,18 @@ class Explorer:
         else:
             print('Faild driving to: ' + str(x) + ' | ' + str(y))
             self.is_navigating = False
+
+    def _publish_point(self, x, y):
+        pt_stamped = PointStamped()
+
+        pt_stamped.header.frame_id = "map"
+        pt_stamped.header.stamp = rospy.Time.now()
+
+        pt_stamped.point.x = (x * self.map_resolution) + self.map_offset_x
+        pt_stamped.point.y = (y * self.map_resolution) + self.map_offset_y
+        pt_stamped.point.z = 0
+
+        self.pub_point.publish(pt_stamped)
 
 if __name__ == '__main__':
     try:
