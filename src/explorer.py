@@ -28,7 +28,7 @@ class Explorer:
         self.map_updated = False
         self.scan = []
         self.waypoints = []
-        self.robot_radius = 3
+        self.robot_radius = 2
         self.map_resolution = 0
         self.robot_x = 0
         self.robot_x_pose = 0
@@ -75,7 +75,7 @@ class Explorer:
         # search for an unkown space
         x, y = self._search_for_unknown_space(blowup)
         # get the waypoints to the unkown space
-        self.waypoints = self.wavefront.run(copy.deepcopy(blowup), x, y, self.robot_x, self.robot_y, self.robot_radius)
+        self.waypoints = self.wavefront.run(self.map, x, y, self.robot_x, self.robot_y, self.robot_radius)
         self.is_searching_unknown_space = False
     
     def _blow_up_walls(self, map):
@@ -134,12 +134,13 @@ class Explorer:
                     #print "100 = " + str(num_hundret)
                     #print "-1 = " + str(num_neg_one)
                     #print "0 = " + str(num_zero)
-                    map_temp[row-1][col-1] = 8
+                    
                     
                     if(map_temp[row][col] == 0):
                         #print "found"
                         #print col, row
-                        return col, row
+                        map_temp[row-1][col-1] = 8
+                        #return col, row
         np.savetxt("unkown_space.csv", map_temp , delimiter=",", fmt='%1.3f')
         
 
@@ -181,14 +182,14 @@ class Explorer:
         goal.target_pose.pose.position.y = target_y
         goal.target_pose.pose.orientation.w = 1
         self.move_base_client.send_goal(goal)
-        success = self.move_base_client.wait_for_result(rospy.Duration(30, 0))
+        success = self.move_base_client.wait_for_result(rospy.Duration(20, 0))
         #When success then go to next waypoint otherwise stop navigating and check map
         if success:
             print('Reached: ' + str(x) + ' | ' + str(y))
             return True
         else:
             print('Faild driving to: ' + str(x) + ' | ' + str(y))
-            self.move_base_client.cancel_goal()
+            #self.move_base_client.cancel_goal()
             return True
 
 if __name__ == '__main__':
