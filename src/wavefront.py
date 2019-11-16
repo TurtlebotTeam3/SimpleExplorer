@@ -158,19 +158,28 @@ class Wavefront:
     def run(self, map, xGoal, yGoal, xStart, yStart, radius):
         """
         """
-        print('Calculating waypoints')
+        print "Calculating Wavefront"
         map = cp.deepcopy(map)
         # Walls = 100 | Unknown = -1 | Free Space = 0
         # Walls need to be set to 1 to make algorithm work
         map[map == 100] = 1
+        map[map == -1] = 0
+        map[:,0] = 1
+        map[:,len(map)-1] = 1
+        map[0] = 1
+        map[len(map)-1] = 1
+
         map = self._set_start_and_goal(
             map, xGoal, yGoal, xStart, yStart)
+        np.savetxt("wayfrontGoals.csv", map , delimiter=",", fmt='%1.3f')
 
-        print "label"
+        print "Labeling Wavefront"
         map = self._label_adjacent(map, xStart, yStart)
+        np.savetxt("wayfrontLabeling.csv", map , delimiter=",", fmt='%1.3f')
 
-        print "find_path"
+        print "Path finding Wavefront"
         map, waypoints = self._find_path(map, xStart, yStart, radius)
+        np.savetxt("wayfrontPath.csv", map , delimiter=",", fmt='%1.3f')
 
         
         #np.savetxt("wayfront.csv", map , delimiter=",", fmt='%1.3f')

@@ -49,7 +49,6 @@ class Explorer:
         self.mapSub = rospy.Subscriber(
             'map', OccupancyGrid, self._map_callback)
         self.scanSub = rospy.Subscriber('scan', LaserScan, self._scan_callback)
-        self._run()
 
         rospy.spin()
 
@@ -59,18 +58,12 @@ class Explorer:
         self.map_width = data.info.width
         self.map_offset_x = data.info.origin.position.x
         self.map_offset_y = data.info.origin.position.y
-        # reshape the map
         self.map = np.reshape(data.data, (data.info.height, data.info.width))
-
-    def _run(self):
-        threading.Timer(15.0, self._run).start()
-        if self.robot_pose_available and not self.is_navigating and not self.is_searching_unknown_space:
-                #calculate
-                self._calculate()
-                #if not self.is_navigating and not self.is_searching_unknown_space and (len(self.waypoints) > 0):
-                self._navigate()
+        # reshape the map
+        if self.robot_pose_available and not self.is_navigating and not self.is_searching_unknown_space:    
+            self._calculate()
+            self._navigate()
         
-
     def _calculate(self):
         print('Calculating freespace')
         #blow up walls
@@ -82,7 +75,7 @@ class Explorer:
         # search for an unkown space
         x, y = self._search_for_unknown_space(blowup)
         # get the waypoints to the unkown space
-        self.waypoints = self.wavefront.run(blowup, x, y, self.robot_x, self.robot_y, self.robot_radius)
+        self.waypoints = self.wavefront.run(copy.deepcopy(blowup), x, y, self.robot_x, self.robot_y, self.robot_radius)
         self.is_searching_unknown_space = False
     
     def _blow_up_walls(self, map):
@@ -121,7 +114,6 @@ class Explorer:
             # self.robot_x = int(math.ceil(self.map_width/2 + self.map_offset_x + self.robot_x_pose/self.map_resolution))
             # self.robot_y = int(math.ceil(self.map_height/2 + self.map_offset_y + self.robot_y_pose/self.map_resolution))
 
-        
             self.robot_pose_available = True
 
     def _search_for_unknown_space(self, map):
@@ -148,12 +140,12 @@ class Explorer:
                         #print "found"
                         #print col, row
                         return col, row
-        np.savetxt("find.csv", map_temp , delimiter=",", fmt='%1.3f')
+        np.savetxt("unkown_space.csv", map_temp , delimiter=",", fmt='%1.3f')
         
 
     def _navigate(self):
         # check if waypoints are available
-        if len(self.waypoints) > 0:
+        #if len(self.waypoints) == []:
             self.is_navigating = True
             # get waypoint and start moving towards it
             # when success the process next
@@ -161,14 +153,14 @@ class Explorer:
             #(x, y) = self.waypoints.pop(0) # visit all way points
             # send final goal
             (x, y) = self.waypoints[len(self.waypoints) - 1]
-            self.waypoints = []
 
             success = self._move(x, y)
-            if not success:
+            if success:
                 # when not success plan new path
                 self.waypoints = []
-        else:
-            self.is_navigating = False
+                self.is_navigating = False
+        #else:
+        #    self.is_navigating = False
 
     def _move(self, x, y):
         """
@@ -189,14 +181,15 @@ class Explorer:
         goal.target_pose.pose.position.y = target_y
         goal.target_pose.pose.orientation.w = 1
         self.move_base_client.send_goal(goal)
-        success = self.move_base_client.wait_for_result(rospy.Duration(15))
+        success = self.move_base_client.wait_for_result(rospy.Duration(30, 0))
         #When success then go to next waypoint otherwise stop navigating and check map
         if success:
             print('Reached: ' + str(x) + ' | ' + str(y))
-            self._navigate()
+            return True
         else:
             print('Faild driving to: ' + str(x) + ' | ' + str(y))
-            self.is_navigating = False
+            self.move_base_client.cancel_goal()
+            return True
 
 if __name__ == '__main__':
     try:
