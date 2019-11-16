@@ -37,7 +37,7 @@ class Wavefront:
         currentY = yStart
         lastX = xStart
         lastY = yStart
-        direction = 'v'
+        #direction = 'v'
         #currentValue = -2
         waypoints = []
         firstWayPoint = True
@@ -56,12 +56,12 @@ class Wavefront:
                 #currentValue = currentValue - 1
                 #map[currentY][currentX] = currentValue
 
-                direction_changed, direction = self._detect_direction_change(direction, currentX, currentY, lastX, lastY)
-                if direction_changed:
-                    if firstWayPoint:
-                        firstWayPoint = False
-                    else:
-                        waypoints.append((lastX, lastY))
+                #direction_changed, direction = self._detect_direction_change(direction, currentX, currentY, lastX, lastY)
+                #if direction_changed:
+                if firstWayPoint:
+                    firstWayPoint = False
+                else:
+                    waypoints.append((lastX, lastY))
                         # if len(waypoints) >= 2:
                         #    run = False
 
@@ -132,40 +132,24 @@ class Wavefront:
 
         # check top
         if (map[currentY - 1][currentX]) == tempValue - 1:
-            row = currentY - 1
-            col = currentX
-            surrounding_any_wall = map[row - radius : row + radius + 1, col - radius : col + radius + 1] == 100
-            if (not any(np.any(surrounding_any_wall, axis = 0)) and not any(np.any(surrounding_any_wall, axis = 1))) or map[currentY - 1][currentX] == -2:
-                tempX = currentX
-                tempY = currentY - 1
-                tempValue = map[currentY - 1][currentX]
+            tempX = currentX
+            tempY = currentY - 1
+            tempValue = map[currentY - 1][currentX]
         # check bottom
         if (map[currentY + 1][currentX]) == tempValue - 1:
-            row = currentY
-            col = currentX + 1
-            surrounding_any_wall = map[row - radius : row + radius + 1, col - radius : col + radius + 1] == 100
-            if (not any(np.any(surrounding_any_wall, axis = 0)) and not any(np.any(surrounding_any_wall, axis = 1))) or map[currentY - 1][currentX] == -2:
-                tempX = currentX
-                tempY = currentY + 1
-                tempValue = map[currentY + 1][currentX]
+            tempX = currentX
+            tempY = currentY + 1
+            tempValue = map[currentY + 1][currentX]
         # check left
         if (map[currentY][currentX - 1]) == tempValue - 1:
-            row = currentY + 1
-            col = currentX
-            surrounding_any_wall = map[row - radius : row + radius + 1, col - radius : col + radius + 1] == 100
-            if (not any(np.any(surrounding_any_wall, axis = 0)) and not any(np.any(surrounding_any_wall, axis = 1))) or map[currentY - 1][currentX] == -2:
-                tempX = currentX - 1
-                tempY = currentY
-                tempValue = map[currentY][currentX - 1]
+            tempX = currentX - 1
+            tempY = currentY
+            tempValue = map[currentY][currentX - 1]
             # check right
         if (map[currentY][currentX + 1]) == tempValue - 1:
-            row = currentY
-            col = currentX - 1
-            surrounding_any_wall = map[row - radius : row + radius + 1, col - radius : col + radius + 1] == 100
-            if (not any(np.any(surrounding_any_wall, axis = 0)) and not any(np.any(surrounding_any_wall, axis = 1))) or map[currentY - 1][currentX] == -2:
-                tempX = currentX + 1
-                tempY = currentY
-                tempValue = map[currentY][currentX + 1]
+            tempX = currentX + 1
+            tempY = currentY
+            tempValue = map[currentY][currentX + 1]
 
         nextA = [tempX, tempY, tempValue]
 
@@ -174,6 +158,7 @@ class Wavefront:
     def run(self, map, xGoal, yGoal, xStart, yStart, radius):
         """
         """
+        print('Calculating waypoints')
         map = cp.deepcopy(map)
         # Walls = 100 | Unknown = -1 | Free Space = 0
         # Walls need to be set to 1 to make algorithm work
@@ -181,23 +166,24 @@ class Wavefront:
         map = self._set_start_and_goal(
             map, xGoal, yGoal, xStart, yStart)
 
+        print "label"
         map = self._label_adjacent(map, xStart, yStart)
 
+        print "find_path"
         map, waypoints = self._find_path(map, xStart, yStart, radius)
 
-        return waypoints
+        
+        #np.savetxt("wayfront.csv", map , delimiter=",", fmt='%1.3f')
 
-    def findUnknown(self, map, xStart, yStart, radius):
-        map = cp.deepcopy(map)
-        # Walls = 100 | Unknown = -1 | Free Space = 0
-        # Walls need to be set to 1 to make algorithm work
-        map[map == 100] = 1
-        map[yStart][xStart] = -2
-        # Set all unkown areas as goal
-        map[map == -1] = 2
-        map = self._label_adjacent(map, xStart, yStart)
-        map, waypoints = self._find_path(map, xStart, yStart, radius)
+        #raw_input("ddddd")
+        miniwaypoints = waypoints #[:14]
+        #miniwaypoints = waypoints[len(waypoints) - 1
 
-        return waypoints
+        #while len(test) > 0:
+        #    temp = test.pop(0)
+        #    map[temp[1]][temp[0]] = -9
 
+        np.savetxt("withwaypoints.csv", map , delimiter=",", fmt='%1.3f')
 
+        #raw_input("ddddd")
+        return miniwaypoints
