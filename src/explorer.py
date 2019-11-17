@@ -28,7 +28,8 @@ class Explorer:
         self.map_updated = False
         self.scan = []
         self.waypoints = []
-        self.robot_radius = 2
+        self.waypointsFound = False
+        self.robot_radius = 1
         self.map_resolution = 0
         self.robot_x = 0
         self.robot_x_pose = 0
@@ -61,8 +62,10 @@ class Explorer:
         self.map = np.reshape(data.data, (data.info.height, data.info.width))
         # reshape the map
         if self.robot_pose_available and not self.is_navigating and not self.is_searching_unknown_space:    
-            self._calculate()
-            self._navigate()
+            if(self.waypointsFound == True):
+                self._navigate()
+            else:
+                self._calculate()
         
     def _calculate(self):
         print('Calculating freespace')
@@ -71,12 +74,44 @@ class Explorer:
         np.savetxt("map_normal.csv", self.map , delimiter=",", fmt='%1.3f')
         np.savetxt("map_blowup.csv", blowup , delimiter=",", fmt='%1.3f')
 
+        robo_x = self.robot_x
+        robo_y = self.robot_y
+
         self.is_searching_unknown_space = True
         # search for an unkown space
-        x, y = self._search_for_unknown_space(blowup)
+        goal_x, goal_y = self._search_for_unknown_space(blowup, robo_x, robo_y)
         # get the waypoints to the unkown space
-        self.waypoints = self.wavefront.run(self.map, x, y, self.robot_x, self.robot_y, self.robot_radius)
+        
+        self.waypoints = self.wavefront.run(blowup, goal_y, goal_x, robo_x, robo_y, self.robot_radius)
+        self.waypointsFound = True
         self.is_searching_unknown_space = False
+
+    def _search_for_unknown_space(self, map, robo_x, robo_y):
+        map_temp = copy.deepcopy(map)
+        num_rows = len(map_temp)
+        num_cols = len(map_temp[0])
+        size = 1
+        map_temp[robo_y][robo_x] = 55
+        for row in range(size, num_rows - 1 - size):
+            for col in range(size, num_cols - 1 - size) :
+                area = map_temp[col - size : col + size + 1, row - size : row + size + 1 ]
+                
+                if(map_temp[col][row] == 55):
+                    map_temp[col - size : col + size + 1, row - size : row + size + 1 ] = 88
+                    map_temp[col][row] = 55
+                
+                num_hundret = np.count_nonzero(area == 100)
+                num_neg_one = np.count_nonzero(area == -1)
+                num_zero = np.count_nonzero(area == 0)
+
+                if (num_hundret == 0) and (num_neg_one > 0) and (num_neg_one < 3) and (num_zero > 0):
+                    if(map_temp[col][row] == 0):
+                        #print "found"
+                        #print col, row
+                        map_temp[col][row] = 77
+                        np.savetxt("unkown_space.csv", map_temp , delimiter=",", fmt='%1.3f')
+                        return col, row
+        #np.savetxt("unkown_space.csv", map_temp , delimiter=",", fmt='%1.3f')
     
     def _blow_up_walls(self, map):
         map_old = copy.deepcopy(map)
@@ -111,63 +146,33 @@ class Explorer:
 
             self.robot_x = int(math.floor((self.robot_x_pose - self.map_offset_x)/self.map_resolution))
             self.robot_y = int(math.floor((self.robot_y_pose - self.map_offset_y)/self.map_resolution))
-            # self.robot_x = int(math.ceil(self.map_width/2 + self.map_offset_x + self.robot_x_pose/self.map_resolution))
-            # self.robot_y = int(math.ceil(self.map_height/2 + self.map_offset_y + self.robot_y_pose/self.map_resolution))
 
-            self.robot_pose_available = True
-
-    def _search_for_unknown_space(self, map):
-        map_temp = copy.deepcopy(map)
-        num_rows = len(map_temp)
-        num_cols = len(map_temp[0])
-        for row in range(self.robot_radius, num_rows - self.robot_radius - 1):
-            for col in range(self.robot_radius, num_cols - self.robot_radius - 1):
-                area = map_temp[row - self.robot_radius : row + self.robot_radius , col - self.robot_radius : col + self.robot_radius]
-                #print len(area)
-                #print len(area[0])
-                num_hundret = np.count_nonzero(area == 100)
-                num_neg_one = np.count_nonzero(area == -1)
-                num_zero = np.count_nonzero(area == 0)
-
-                if not (num_hundret > 0) and (num_neg_one > 2) and (num_zero > 2):
-                    #map[row - self.robot_radius : row + self.robot_radius , col - self.robot_radius : col + self.robot_radius] = 0
-                    #print "100 = " + str(num_hundret)
-                    #print "-1 = " + str(num_neg_one)
-                    #print "0 = " + str(num_zero)
-                    
-                    
-                    if(map_temp[row][col] == 0):
-                        #print "found"
-                        #print col, row
-                        map_temp[row-1][col-1] = 8
-                        #return col, row
-        np.savetxt("unkown_space.csv", map_temp , delimiter=",", fmt='%1.3f')
-        
+            self.robot_pose_available = True     
 
     def _navigate(self):
-        # check if waypoints are available
-        #if len(self.waypoints) == []:
-            self.is_navigating = True
             # get waypoint and start moving towards it
             # when success the process next
-            
-            #(x, y) = self.waypoints.pop(0) # visit all way points
-            # send final goal
-            (x, y) = self.waypoints[len(self.waypoints) - 1]
+            self.is_navigating = True
 
-            success = self._move(x, y)
-            if success:
-                # when not success plan new path
-                self.waypoints = []
+            if(len(self.waypoints) > 0):
+                print self.waypoints
+                (x, y, direction) = self.waypoints.pop(0)
+                print self.waypoints
+                self.waypointsFound = True
+                success = self._move(y, x, direction)
+                if success:
+                    # next point
+                    self._navigate()
+            else:
                 self.is_navigating = False
-        #else:
-        #    self.is_navigating = False
+                self.waypointsFound = False
 
-    def _move(self, x, y):
+    def _move(self, x, y, direction):
         """
         Moves the robot to a place defined by coordinates x and y.
         """
         print('Navigate to: ' + str(x) + ' | ' + str(y))
+        print('Direction: ' + str(direction))
         goal = MoveBaseGoal()
         goal.target_pose.header.frame_id = "map"
         goal.target_pose.header.stamp = rospy.Time.now()
@@ -182,7 +187,7 @@ class Explorer:
         goal.target_pose.pose.position.y = target_y
         goal.target_pose.pose.orientation.w = 1
         self.move_base_client.send_goal(goal)
-        success = self.move_base_client.wait_for_result(rospy.Duration(20, 0))
+        success = self.move_base_client.wait_for_result(rospy.Duration(25, 0))
         #When success then go to next waypoint otherwise stop navigating and check map
         if success:
             print('Reached: ' + str(x) + ' | ' + str(y))
