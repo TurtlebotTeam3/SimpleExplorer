@@ -14,6 +14,7 @@ from tf import TransformListener
 import copy
 import math
 import threading
+import time
 
 
 class Explorer:
@@ -166,6 +167,7 @@ class Explorer:
             else:
                 self.is_navigating = False
                 self.waypointsFound = False
+                time.sleep(15)
 
     def _move(self, x, y, direction):
         """
@@ -187,14 +189,15 @@ class Explorer:
         goal.target_pose.pose.position.y = target_y
         goal.target_pose.pose.orientation.w = 1
         self.move_base_client.send_goal(goal)
-        success = self.move_base_client.wait_for_result(rospy.Duration(25, 0))
+        
+        success = self.move_base_client.wait_for_result(rospy.Duration(20, 0))
         #When success then go to next waypoint otherwise stop navigating and check map
         if success:
             print('Reached: ' + str(x) + ' | ' + str(y))
             return True
         else:
             print('Faild driving to: ' + str(x) + ' | ' + str(y))
-            #self.move_base_client.cancel_goal()
+            self.move_base_client.cancel_goal()
             return True
 
 if __name__ == '__main__':

@@ -67,40 +67,27 @@ class Wavefront:
                             direction_changed = -40
                     else:
                         if currentX > lastX and direction_changed != -10:
-                            direction_changed = -10
                             map[lastY][lastX] = direction_changed
+                            direction_changed = -10
                             #Append
                             waypoints.append((lastY, lastX, direction_changed))
                         if currentX < lastX and direction_changed != -20:
-                            direction_changed = -20
                             map[lastY][lastX] = direction_changed
+                            direction_changed = -20
                             #Append
                             waypoints.append((lastY, lastX, direction_changed))
                         if currentY > lastY and direction_changed != -30:
-                            direction_changed = -30
                             map[lastY][lastX] = direction_changed
+                            direction_changed = -30
                             #Append
                             waypoints.append((lastY, lastX, direction_changed))
                         if currentY < lastY and direction_changed != -40:
-                            direction_changed = -40
                             map[lastY][lastX] = direction_changed
+                            direction_changed = -40
                             #Append
                             waypoints.append((lastY, lastX, direction_changed))
 
             elif (nextLowestAdjeacent[2]) == 2:
-                nextHighestAdjeacent = self._get_highest_adjeacent(map, currentX, currentY)
-                lastX = currentX
-                lastY = currentY
-                currentX = nextHighestAdjeacent[0]
-                currentY = nextHighestAdjeacent[1]
-                if currentX > lastX and direction_changed != -10:
-                    direction_changed = -10
-                if currentX < lastX and direction_changed != -20:
-                    direction_changed = -20
-                if currentY > lastY and direction_changed != -30:
-                    direction_changed = -30
-                if currentY < lastY and direction_changed != -40:
-                    direction_changed = -40
                 map[nextLowestAdjeacent[1]][nextLowestAdjeacent[0]] = direction_changed
                 #Append
                 waypoints.append((nextLowestAdjeacent[1], nextLowestAdjeacent[0], direction_changed))
