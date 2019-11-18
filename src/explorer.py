@@ -167,7 +167,7 @@ class Explorer:
             else:
                 self.is_navigating = False
                 self.waypointsFound = False
-                time.sleep(15)
+                #time.sleep(5)
 
     def _move(self, x, y, direction):
         """
@@ -190,7 +190,7 @@ class Explorer:
         goal.target_pose.pose.orientation.w = 1
         self.move_base_client.send_goal(goal)
         
-        success = self.move_base_client.wait_for_result(rospy.Duration(20, 0))
+        success = self.move_base_client.wait_for_result(rospy.Duration(5, 0))
         #When success then go to next waypoint otherwise stop navigating and check map
         if success:
             print('Reached: ' + str(x) + ' | ' + str(y))
