@@ -40,6 +40,7 @@ class Wavefront:
         direction = 'v'
         #currentValue = -2
         waypoints = []
+        allpoints = []
 
         run = True
         while run == True:
@@ -58,11 +59,12 @@ class Wavefront:
                 direction_changed, direction = self._detect_direction_change(direction, currentX, currentY, lastX, lastY)
                 if direction_changed:
                     waypoints.append((lastX, lastY))
+                allpoints.append((currentX, currentY))
 
             elif (nextLowestAdjeacent[2]) == 2:
                 waypoints.append((currentX, currentY))
                 run = False
-        return map , waypoints
+        return map , waypoints, allpoints
 
     def _detect_direction_change(self, direction, current_x, current_y, last_x, last_y):
         """
@@ -293,9 +295,9 @@ class Wavefront:
 
         map = self._label_adjacent(map, xStart, yStart)
 
-        map, waypoints = self._find_path(map, xStart, yStart, radius)
+        map, waypoints, allpoints = self._find_path(map, xStart, yStart, radius)
 
-        return waypoints
+        return waypoints, allpoints
 
     def findUnknown(self, map, xStart, yStart, radius):
         map = cp.deepcopy(map)
@@ -306,8 +308,8 @@ class Wavefront:
         # Set all unkown areas as goal
         map[map == -1] = 2
         map = self._label_adjacent(map, xStart, yStart)
-        map, waypoints = self._find_path(map, xStart, yStart, radius)
+        map, waypoints, allpoints = self._find_path(map, xStart, yStart, radius)
         waypoints = self._move_waipoints_away_from_obstacles(map, waypoints, radius)
-        return waypoints
+        return waypoints, allpoints
 
 
