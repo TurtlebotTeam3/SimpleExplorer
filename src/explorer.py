@@ -9,6 +9,8 @@ from nav_msgs.msg._Odometry import Odometry
 from sensor_msgs.msg._LaserScan import LaserScan
 from move_base_msgs.msg._MoveBaseGoal import MoveBaseGoal
 from geometry_msgs.msg import PointStamped
+from geometry_msgs.msg._Pose import Pose
+from std_msgs.msg._Bool import Bool
 from wavefront import Wavefront
 import actionlib
 from tf import TransformListener
@@ -40,14 +42,20 @@ class Explorer:
         self.map =[[]]
         self.wavefront = Wavefront()
         self.transformListener = TransformListener()
+        self.spam_clicked_point = False
 
         self.move_base_client = actionlib.SimpleActionClient(
             'move_base', MoveBaseAction)
-        self.odomSub = rospy.Subscriber('odom', Odometry, self._odom_callback)
+        self.odomSub = rospy.Subscriber('/odom', Odometry, self._odom_callback)
         self.mapSub = rospy.Subscriber(
-            'map', OccupancyGrid, self._map_callback)
-        self.scanSub = rospy.Subscriber('scan', LaserScan, self._scan_callback)
-        self.pub_point = rospy.Publisher('clicked_point',PointStamped)
+            '/map', OccupancyGrid, self._map_callback)
+        self.scanSub = rospy.Subscriber('/scan', LaserScan, self._scan_callback)
+        self.pub_point = rospy.Publisher('clicked_point',PointStamped, queue_size=1)
+
+        self.pub_goal = rospy.Publisher('move_to_goal/goal', Pose, queue_size=1)
+        self.sub_goal_reached = rospy.Subscriber('/move_to_goal/reached', Bool, self._goal_reached_callback)
+
+        self.rate = rospy.Rate(20)
 
         rospy.spin()
 
@@ -71,7 +79,7 @@ class Explorer:
             # search for an unkown space
             # x, y = self._search_for_unknown_space(map)
             print('Calculating waypoints')
-            self.waypoints = self.wavefront.findUnknown(map,self.robot_x, self.robot_y, self.robot_radius)
+            self.waypoints, allpoints = self.wavefront.findUnknown(map,self.robot_x, self.robot_y, self.robot_radius)
             # get the waypoints to the unkown space
             
             #self.waypoints = self.wavefront.run(
@@ -79,8 +87,18 @@ class Explorer:
             # self.wavefront.findUnknown(self.map, self.robot_x, self.robot_y, self.robot_radius)
             # self.waypoints.append((x,y))
 
+            # clear clicked points
+            for i in range(100):            
+                self._publish_point(0, 0)
+                self.rate.sleep()
+
+            # for (x, y) in allpoints:
+            #    self._publish_point(x, y)
+            #    self.rate.sleep()
+
             for (x, y) in self.waypoints:
                 self._publish_point(x, y)
+                self.rate.sleep()
 
             self.is_searching_unknown_space = False
             #start navigating
@@ -95,6 +113,15 @@ class Explorer:
                 if map[row,col] == 100 and row >= blowUpCellNum and col >= blowUpCellNum and row <= len(tmp_map) - blowUpCellNum and col <= len(tmp_map[0]) - blowUpCellNum:
                     tmp_map[row - blowUpCellNum : row + blowUpCellNum, col - blowUpCellNum : col + blowUpCellNum] = 100
         return tmp_map
+
+    def _goal_reached_callback(self, reached):
+        print('Reached: ' + str(reached))
+        if reached:
+            self._navigate()
+        else:
+            self.waypoints = []
+            self.is_navigating = False
+
 
     def _scan_callback(self, scan):
         pass
@@ -142,14 +169,15 @@ class Explorer:
             # (x, y) = self.waypoints[len(self.waypoints) - 1]
             # self.waypoints = []
 
-            success = self._move(x, y)
-            if not success:
+            self._move_2(x,y)
+            # success = self._move_1(x, y)
+            # if not success:
                 # when not success plan new path
-                self.waypoints = []
+            #    self.waypoints = []
         else:
             self.is_navigating = False
 
-    def _move(self, x, y):
+    def _move_1(self, x, y):
         """
         Moves the robot to a place defined by coordinates x and y.
         """
@@ -167,6 +195,8 @@ class Explorer:
         goal.target_pose.pose.position.x = target_x
         goal.target_pose.pose.position.y = target_y
         goal.target_pose.pose.orientation.w = 1
+
+
         self.move_base_client.send_goal(goal)
         success = self.move_base_client.wait_for_result(rospy.Duration(60))
         #When success then go to next waypoint otherwise stop navigating and check map
@@ -176,6 +206,23 @@ class Explorer:
         else:
             print('Faild driving to: ' + str(x) + ' | ' + str(y))
             self.is_navigating = False
+
+    def _move_2(self, x, y):
+        """
+        Moves the rob2t to a place defined by coordinates x and y.
+        """
+        print('Navigate to: ' + str(x) + ' | ' + str(y))
+        goal = Pose()
+
+        target_x = (x * self.map_resolution) + self.map_offset_x
+        target_y = (y * self.map_resolution) + self.map_offset_y
+
+        goal.position.x = target_x
+        goal.position.y = target_y
+        goal.orientation.w = 1
+
+        self.pub_goal.publish(goal)
+
 
     def _publish_point(self, x, y):
         pt_stamped = PointStamped()
