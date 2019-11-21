@@ -46,11 +46,11 @@ class Explorer:
         self.start = False
 
         self.move_base_client = actionlib.SimpleActionClient(
-            'move_base', MoveBaseAction)
-        self.odomSub = rospy.Subscriber('odom', Odometry, self._odom_callback)
+            '/move_base', MoveBaseAction)
+        self.odomSub = rospy.Subscriber('/odom', Odometry, self._odom_callback)
         self.mapSub = rospy.Subscriber(
-            'map', OccupancyGrid, self._map_callback)
-        self.scanSub = rospy.Subscriber('scan', LaserScan, self._scan_callback)
+            '/map', OccupancyGrid, self._map_callback)
+        self.scanSub = rospy.Subscriber('/scan', LaserScan, self._scan_callback)
 
         rospy.spin()
 
@@ -61,7 +61,6 @@ class Explorer:
         self.map_offset_x = data.info.origin.position.x
         self.map_offset_y = data.info.origin.position.y
         self.map = np.reshape(data.data, (data.info.height, data.info.width))
-        # reshape the map
         if self.robot_pose_available and not self.is_navigating and not self.is_searching_unknown_space:    
             if(self.waypointsFound == True):
                 self._navigate()
@@ -157,7 +156,9 @@ class Explorer:
 
             if(len(self.waypoints) > 0):
                 print self.waypoints
-                (x, y, direction) = self.waypoints.pop(0)
+                #(x, y, direction) = self.waypoints.pop(0)
+                (x, y, direction) = self.waypoints.pop(len(self.waypoints) - 1)
+                self.waypoints = []
                 print self.waypoints
                 self.waypointsFound = True
                 success = self._move(y, x, direction)
@@ -190,7 +191,7 @@ class Explorer:
         goal.target_pose.pose.orientation.w = 1
         self.move_base_client.send_goal(goal)
         
-        success = self.move_base_client.wait_for_result(rospy.Duration(5, 0))
+        success = self.move_base_client.wait_for_result(rospy.Duration(10, 0))
         #When success then go to next waypoint otherwise stop navigating and check map
         if success:
             print('Reached: ' + str(x) + ' | ' + str(y))

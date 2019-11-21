@@ -8,6 +8,8 @@ class Wavefront:
     def _set_start_and_goal(self, map, xGoal, yGoal, xStart, yStart):
         """
         """
+        size = 1
+        map[yStart - size : yStart + size + 1, xStart - size : xStart + size + 1 ] = 0
         map[yGoal][xGoal] = 2
         map[yStart][xStart] = -2
         return map
@@ -15,11 +17,11 @@ class Wavefront:
     def _label_adjacent(self, map, xStart, yStart):
         """
         """
-        size = len(map)
+        size = len(map) - 50
         run = True
         while run == True:
-            for y in range(0, size):
-                for x in range(0, size):
+            for y in range(50, size):
+                for x in range(50, size):
                     if map[y][x] == 0:
                         highestAdjeacent = self._get_highest_adjeacent(map, x, y)
                         if highestAdjeacent[2] > 1:
@@ -88,7 +90,7 @@ class Wavefront:
                             waypoints.append((lastY, lastX, direction_changed))
 
             elif (nextLowestAdjeacent[2]) == 2:
-                map[nextLowestAdjeacent[1]][nextLowestAdjeacent[0]] = direction_changed
+                map[nextLowestAdjeacent[1]][nextLowestAdjeacent[0]] = -100
                 #Append
                 waypoints.append((nextLowestAdjeacent[1], nextLowestAdjeacent[0], direction_changed))
                 run = False
