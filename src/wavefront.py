@@ -5,12 +5,12 @@ import copy as cp
 
 class Wavefront:
 
-    def _set_start_and_goal(self, map, xGoal, yGoal, xStart, yStart):
+    def _set_start_and_goal(self, map, xStart, yStart):
         """
         """
         size = 1
         map[yStart - size : yStart + size + 1, xStart - size : xStart + size + 1 ] = 0
-        map[yGoal][xGoal] = 2
+        #map[yGoal][xGoal] = 2
         map[yStart][xStart] = -2
         return map
 
@@ -32,21 +32,23 @@ class Wavefront:
                 run = False
         return map
 
-    def _find_path(self, map, xStart, yStart, radius):
+    def _find_path(self, map, xStart, yStart):
         """
         """
         currentX = xStart
         currentY = yStart
         lastX = xStart
         lastY = yStart
-        direction_changed = -0
+        #currentValue = -2
         waypoints = []
-        firstWayPoint = True
-        secondWayPoint = True
+
+        map[currentY][currentX] = -2
 
         run = True
         while run == True:
             nextLowestAdjeacent = self._get_next_lowest_adjeacent(map, currentX, currentY)
+
+            print nextLowestAdjeacent[2]
 
             if nextLowestAdjeacent[2] != 2:
                 lastX = currentX
@@ -54,47 +56,11 @@ class Wavefront:
                 currentX = nextLowestAdjeacent[0]
                 currentY = nextLowestAdjeacent[1]
 
-                if firstWayPoint:
-                    firstWayPoint = False
-                else:
-                    if secondWayPoint:
-                        secondWayPoint = False
-                        if currentX > lastX:
-                            direction_changed = -10
-                        if currentX < lastX:
-                            direction_changed = -20
-                        if currentY > lastY:
-                            direction_changed = -30
-                        if currentY < lastY:
-                            direction_changed = -40
-                    else:
-                        if currentX > lastX and direction_changed != -10:
-                            map[lastY][lastX] = direction_changed
-                            direction_changed = -10
-                            #Append
-                            waypoints.append((lastY, lastX, direction_changed))
-                        if currentX < lastX and direction_changed != -20:
-                            map[lastY][lastX] = direction_changed
-                            direction_changed = -20
-                            #Append
-                            waypoints.append((lastY, lastX, direction_changed))
-                        if currentY > lastY and direction_changed != -30:
-                            map[lastY][lastX] = direction_changed
-                            direction_changed = -30
-                            #Append
-                            waypoints.append((lastY, lastX, direction_changed))
-                        if currentY < lastY and direction_changed != -40:
-                            map[lastY][lastX] = direction_changed
-                            direction_changed = -40
-                            #Append
-                            waypoints.append((lastY, lastX, direction_changed))
-
-            elif (nextLowestAdjeacent[2]) == 2:
-                map[nextLowestAdjeacent[1]][nextLowestAdjeacent[0]] = -100
-                #Append
-                waypoints.append((nextLowestAdjeacent[1], nextLowestAdjeacent[0], direction_changed))
+                map[nextLowestAdjeacent[1]][nextLowestAdjeacent[0]] = -555
+            else:
+                waypoints.append((currentX, currentY))
+                map[nextLowestAdjeacent[1]][nextLowestAdjeacent[0]] = -666
                 run = False
-
         return map , waypoints
 
     def _get_highest_adjeacent(self, map, currentX, currentY):
@@ -168,7 +134,7 @@ class Wavefront:
 
         return nextA
 
-    def run(self, map, xGoal, yGoal, xStart, yStart, radius):
+    def run(self, map, xStart, yStart):
         """
         """
         print "Calculating Wavefront"
@@ -182,19 +148,20 @@ class Wavefront:
         map[:,len(map) - 1 - size : len(map)-1] = 1
         map[0:size] = 1
         map[len(map)- 1 - size : len(map)-1] = 1
-        map[map == -1] = 1
+        map[map == -1] = 2
 
-        map = self._set_start_and_goal(map, xGoal, yGoal, xStart, yStart)
+        map = self._set_start_and_goal(map, xStart, yStart)
         np.savetxt("wayfrontGoals.csv", map , delimiter=",", fmt='%1.3f')
 
         print "Labeling Wavefront"
         map = self._label_adjacent(map, xStart, yStart)
-        np.savetxt("wayfrontLabeling.csv", map , delimiter=",", fmt='%1.3f')
-        
+        np.savetxt("wayfrontLabeling.csv", map , delimiter=",", fmt='%1.3f')       
 
         print "Path finding Wavefront"
-        map, waypoints = self._find_path(map, xStart, yStart, radius)
+        map, waypoints = self._find_path(map, xStart, yStart)
         np.savetxt("wayfrontPath.csv", map , delimiter=",", fmt='%1.3f')
+
+        raw_input("ddddd")
 
         #print waypoints
         #raw_input("ddddd")

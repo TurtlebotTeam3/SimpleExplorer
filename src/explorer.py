@@ -79,10 +79,10 @@ class Explorer:
 
         self.is_searching_unknown_space = True
         # search for an unkown space
-        goal_x, goal_y = self._search_for_unknown_space(blowup, robo_x, robo_y)
+        #goal_x, goal_y = self._search_for_unknown_space(blowup, robo_x, robo_y)
         # get the waypoints to the unkown space
         
-        self.waypoints = self.wavefront.run(blowup, goal_y, goal_x, robo_x, robo_y, self.robot_radius)
+        self.waypoints = self.wavefront.run(blowup, robo_x, robo_y)
         self.waypointsFound = True
         self.is_searching_unknown_space = False
 
