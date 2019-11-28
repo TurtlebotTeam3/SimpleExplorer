@@ -52,6 +52,8 @@ class Explorer:
             '/map', OccupancyGrid, self._map_callback)
         self.scanSub = rospy.Subscriber('/scan', LaserScan, self._scan_callback)
 
+        self._run()
+
         rospy.spin()
 
     def _map_callback(self, data):
@@ -61,11 +63,15 @@ class Explorer:
         self.map_offset_x = data.info.origin.position.x
         self.map_offset_y = data.info.origin.position.y
         self.map = np.reshape(data.data, (data.info.height, data.info.width))
-        if self.robot_pose_available and not self.is_navigating and not self.is_searching_unknown_space:    
-            if(self.waypointsFound == True):
-                self._navigate()
-            else:
-                self._calculate()
+    
+    def _run(self):
+        run = True
+        while run == True:
+            if self.robot_pose_available and not self.is_navigating and not self.is_searching_unknown_space:    
+                if(self.waypointsFound == True):
+                    self._navigate()
+                else:
+                    self._calculate()
         
     def _calculate(self):
         print('Calculating freespace')
@@ -157,25 +163,27 @@ class Explorer:
             if(len(self.waypoints) > 0):
                 print self.waypoints
                 #(x, y, direction) = self.waypoints.pop(0)
-                (x, y, direction) = self.waypoints.pop(len(self.waypoints) - 1)
+                (x, y) = self.waypoints.pop(len(self.waypoints) - 1)
                 self.waypoints = []
                 print self.waypoints
                 self.waypointsFound = True
-                success = self._move(y, x, direction)
+                success = self._move(x, y)
                 if success:
                     # next point
+                    self._navigate()
+                else:
+                    #self._move(self.robot_x, self.robot_y)
                     self._navigate()
             else:
                 self.is_navigating = False
                 self.waypointsFound = False
                 #time.sleep(5)
 
-    def _move(self, x, y, direction):
+    def _move(self, x, y):
         """
         Moves the robot to a place defined by coordinates x and y.
         """
         print('Navigate to: ' + str(x) + ' | ' + str(y))
-        print('Direction: ' + str(direction))
         goal = MoveBaseGoal()
         goal.target_pose.header.frame_id = "map"
         goal.target_pose.header.stamp = rospy.Time.now()
@@ -191,7 +199,7 @@ class Explorer:
         goal.target_pose.pose.orientation.w = 1
         self.move_base_client.send_goal(goal)
         
-        success = self.move_base_client.wait_for_result(rospy.Duration(10, 0))
+        success = self.move_base_client.wait_for_result(rospy.Duration(20, 0))
         #When success then go to next waypoint otherwise stop navigating and check map
         if success:
             print('Reached: ' + str(x) + ' | ' + str(y))
@@ -199,7 +207,7 @@ class Explorer:
         else:
             print('Faild driving to: ' + str(x) + ' | ' + str(y))
             self.move_base_client.cancel_goal()
-            return True
+            return False
 
 if __name__ == '__main__':
     try:

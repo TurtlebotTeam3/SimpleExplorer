@@ -5,12 +5,12 @@ import copy as cp
 
 class Wavefront:
 
-    def _set_start_and_goal(self, map, xStart, yStart):
+    def _set_start_and_goal(self, map, xGoal, yGoal, xStart, yStart):
         """
         """
         size = 1
         map[yStart - size : yStart + size + 1, xStart - size : xStart + size + 1 ] = 0
-        #map[yGoal][xGoal] = 2
+        map[yGoal][xGoal] = 2
         map[yStart][xStart] = -2
         return map
 
@@ -48,19 +48,28 @@ class Wavefront:
         while run == True:
             nextLowestAdjeacent = self._get_next_lowest_adjeacent(map, currentX, currentY)
 
-            print nextLowestAdjeacent[2]
+            #print nextLowestAdjeacent
+            #raw_input("ddd")
 
-            if nextLowestAdjeacent[2] != 2:
+            if nextLowestAdjeacent[2] > 2:
                 lastX = currentX
+                #print lastX
                 lastY = currentY
+                #print lastY
                 currentX = nextLowestAdjeacent[0]
+                #print currentX
                 currentY = nextLowestAdjeacent[1]
+                #print currentY
+                waypoints.append((currentX, currentY))
 
-                map[nextLowestAdjeacent[1]][nextLowestAdjeacent[0]] = -555
+                #map[nextLowestAdjeacent[1]][nextLowestAdjeacent[0]] = -555
             else:
                 waypoints.append((currentX, currentY))
                 map[nextLowestAdjeacent[1]][nextLowestAdjeacent[0]] = -666
                 run = False
+            #np.savetxt("Path.csv", map , delimiter=",", fmt='%1.3f')
+            #raw_input("ddddd")
+            
         return map , waypoints
 
     def _get_highest_adjeacent(self, map, currentX, currentY):
@@ -109,6 +118,8 @@ class Wavefront:
         else:
             tempValue = map[currentY][currentX]
 
+        print tempValue
+
         # check top
         if (map[currentY - 1][currentX]) == tempValue - 1:
             tempX = currentX
@@ -133,6 +144,33 @@ class Wavefront:
         nextA = [tempX, tempY, tempValue]
 
         return nextA
+    
+    def _search_for_unknown_space(self, map, robo_x, robo_y):
+        map_temp = cp.deepcopy(map)
+        num_rows = len(map_temp)
+        num_cols = len(map_temp[0])
+        size = 3
+        map_temp[robo_y][robo_x] = 55
+        for row in range(size, num_rows - 1 - size):
+            for col in range(size, num_cols - 1 - size) :
+                area = map_temp[col - size : col + size + 1, row - size : row + size + 1 ]
+                
+                if(map_temp[col][row] == 55):
+                    map_temp[col - size : col + size + 1, row - size : row + size + 1 ] = 88
+                    map_temp[col][row] = 55
+                
+                num_hundret = np.count_nonzero(area == 100)
+                num_neg_one = np.count_nonzero(area == -1)
+                num_zero = np.count_nonzero(area == 0)
+
+                if (num_hundret == 0) and (num_neg_one > 0) and (num_neg_one < 3) and (num_zero > 0):
+                    if(map_temp[col][row] == 0):
+                        #print "found"
+                        #print col, row
+                        map_temp[col][row] = 77
+                        np.savetxt("unkown_space.csv", map_temp , delimiter=",", fmt='%1.3f')
+                        return col, row
+        #np.savetxt("unkown_space.csv", map_temp , delimiter=",", fmt='%1.3f')
 
     def run(self, map, xStart, yStart):
         """
@@ -148,11 +186,14 @@ class Wavefront:
         map[:,len(map) - 1 - size : len(map)-1] = 1
         map[0:size] = 1
         map[len(map)- 1 - size : len(map)-1] = 1
-        map[map == -1] = 2
 
-        map = self._set_start_and_goal(map, xStart, yStart)
+        goal_x, goal_y = self._search_for_unknown_space(map, xStart, yStart)
+
+        map = self._set_start_and_goal(map, goal_y, goal_x, xStart, yStart)
         np.savetxt("wayfrontGoals.csv", map , delimiter=",", fmt='%1.3f')
 
+        map[map == -1] = 0
+        
         print "Labeling Wavefront"
         map = self._label_adjacent(map, xStart, yStart)
         np.savetxt("wayfrontLabeling.csv", map , delimiter=",", fmt='%1.3f')       
@@ -161,8 +202,6 @@ class Wavefront:
         map, waypoints = self._find_path(map, xStart, yStart)
         np.savetxt("wayfrontPath.csv", map , delimiter=",", fmt='%1.3f')
 
-        raw_input("ddddd")
-
-        #print waypoints
+        print waypoints
         #raw_input("ddddd")
         return waypoints
