@@ -5,11 +5,16 @@ import copy as cp
 
 class Wavefront:
 
+    def __init__(self):
+        self._value_goal = 2
+        self._value_start = -2
+        self._value_wall = 1
+
     def _set_start_and_goal(self, map, xGoal, yGoal, xStart, yStart):
         """
         """
-        map[yGoal][xGoal] = 2
-        map[yStart][xStart] = -2
+        map[yGoal][xGoal] = self._value_goal
+        map[yStart][xStart] = self._value_start
         return map
 
     def _label_adjacent(self, map, xStart, yStart):
@@ -22,13 +27,86 @@ class Wavefront:
                 for x in range(0, size):
                     if map[y][x] == 0:
                         highestAdjeacent = self._get_highest_adjeacent(map, x, y)
-                        if highestAdjeacent[2] > 1:
+                        if highestAdjeacent[2] >= self._value_goal:
                             map[y][x] = highestAdjeacent[2] + 1
             # check start
             highestAdjeacentStart = self._get_highest_adjeacent(map, xStart, yStart)
-            if highestAdjeacentStart[2] > 1:
+            if highestAdjeacentStart[2] >= self._value_goal:
                 run = False
         return map
+
+    def _label_cells(self, map, neighbours):
+        """
+        Labels the map.
+
+        Parameters:
+        map: map to label
+        start ([]): Array of Touple (x,y) of starting position
+        
+        Returns:
+        map: the labeled map
+        max_val: max value during labeling
+        """
+
+        max_val = 0
+        while len(neighbours) != 0:
+            (x, y) = neighbours.pop(0)
+            # North: x,y-1
+            if map[y - 1][x] == 0: # or (map[y - 1][x] > self._value_goal and (map[y][x] + 1) < map[y - 1][x]):
+                map[y - 1][x] = map[y][x] + 1
+                neighbours.append((x,y-1))
+                if map[y][x] + 1 > max_val:
+                    max_val = map[y][x] + 1
+
+            # NortEast: x+1,y-1 
+            # if map[y - 1][x + 1] == 0:# or (map[y - 1][x + 1] > self._value_goal and (map[y][x] + 1) < map[y - 1][x + 1]):
+            #    map[y - 1][x + 1] = map[y][x] + 1
+            #    neighbours.append((x+1,y-1))
+            #    if map[y][x] + 1 > max_val:
+            #        max_val = map[y][x] + 1
+
+            # East: x+1,y
+            if map[y][x + 1] == 0:# or (map[y][x + 1] > self._value_goal and (map[y][x] + 1) < map[y][x + 1]):
+                map[y][x + 1] = map[y][x] + 1
+                neighbours.append((x+1,y))
+                if map[y][x] + 1 > max_val:
+                    max_val = map[y][x] + 1
+            # SouthEast: x+1,y+1
+            #if map[y + 1][x + 1] == 0:# or (map[y + 1][x + 1] > self._value_goal and (map[y][x] + 1) < map[y + 1][x + 1]):
+            #    map[y + 1][x + 1] = map[y][x] + 1
+            #    neighbours.append((x+1,y+1))
+            #    if map[y][x] + 1 > max_val:
+            #        max_val = map[y][x] + 1
+                    
+            # South: x,y+1
+            if map[y + 1][x] == 0:# or (map[y + 1][x] > self._value_goal and (map[y][x] + 1) < map[y + 1][x]):
+               map[y + 1][x] = map[y][x] + 1
+               neighbours.append((x,y+1))
+               if map[y][x] + 1 > max_val:
+                   max_val = map[y][x] + 1
+
+            # SouthWest: x-1,y+1
+            #if map[y + 1][x - 1] == 0:# or (map[y - 1][x - 1] > self._value_goal and (map[y][x] + 1) < map[y - 1][x - 1]):
+            #    map[y + 1][x - 1] = map[y][x] + 1
+            #    neighbours.append((x-1,y+1))
+            #    if map[y][x] + 1 > max_val:
+            #        max_val = map[y][x] + 1
+
+            # West: x-1,y
+            if map[y][x - 1] == 0:# or (map[y][x - 1] > self._value_goal and (map[y][x] + 1) < map[y][x - 1]):
+                map[y][x - 1] = map[y][x] + 1
+                neighbours.append((x-1,y))
+                if map[y][x] + 1 > max_val:
+                    max_val = map[y][x] + 1
+
+            # NorthWest: x-1,y-1
+            # if map[y - 1][x - 1] == 0:# or (map[y - 1][x - 1] > self._value_goal and (map[y][x] + 1) < map[y - 1][x - 1]):
+            #     map[y - 1][x - 1] = map[y][x] + 1
+            #     neighbours.append((x-1,y-1))
+            #     if map[y][x] + 1 > max_val:
+            #         max_val = map[y][x] + 1
+
+        return map, max_val
 
     def _find_path(self, map, xStart, yStart, radius):
         """
@@ -38,7 +116,6 @@ class Wavefront:
         lastX = xStart
         lastY = yStart
         direction = 'v'
-        #currentValue = -2
         waypoints = []
         allpoints = []
         first = True
@@ -48,7 +125,7 @@ class Wavefront:
             nextLowestAdjeacent = self._get_next_lowest_adjeacent(
                 map, currentX, currentY, radius)
 
-            if nextLowestAdjeacent[2] != 2:
+            if nextLowestAdjeacent[2] != self._value_goal:
                 lastX = currentX
                 lastY = currentY
                 currentX = nextLowestAdjeacent[0]
@@ -64,7 +141,7 @@ class Wavefront:
                     waypoints.append((lastX, lastY))
                 allpoints.append((currentX, currentY))
 
-            elif (nextLowestAdjeacent[2]) == 2:
+            elif (nextLowestAdjeacent[2]) == self._value_goal:
                 waypoints.append((currentX, currentY))
                 run = False
         return map , waypoints, allpoints
@@ -296,23 +373,68 @@ class Wavefront:
         map = self._set_start_and_goal(
             map, xGoal, yGoal, xStart, yStart)
 
-        map = self._label_adjacent(map, xStart, yStart)
+        #map = self._label_adjacent(map, xStart, yStart)
+        map, max_val = self._label_cells(map, [(xGoal, yGoal)])
 
         map, waypoints, allpoints = self._find_path(map, xStart, yStart, radius)
 
         return waypoints, allpoints
 
-    def findUnknown(self, map, xStart, yStart, radius):
+    def find_unknown(self, map, xStart, yStart, radius):
         map = cp.deepcopy(map)
         # Walls = 100 | Unknown = -1 | Free Space = 0
         # Walls need to be set to 1 to make algorithm work
-        map[map == 100] = 1
-        map[yStart][xStart] = -2
-        # Set all unkown areas as goal
-        map[map == -1] = 2
-        map = self._label_adjacent(map, xStart, yStart)
+        map[map == 100] = self._value_wall
+        map[yStart][xStart] = self._value_start
+
+        # map = self._label_adjacent(map, xStart, yStart)
+        np.savetxt("map.csv", map , delimiter=",", fmt='%1.3f')
+        map, goals = self._find_all_unknown(map, radius)
+        np.savetxt("map_goals.csv", map , delimiter=",", fmt='%1.3f')
+        map, max_val = self._label_cells(map, goals)
+        #map, max_val = self._label_cells(map, [(xStart, yStart)])
+        np.savetxt("map_labeled.csv", map , delimiter=",", fmt='%1.3f')
+
         map, waypoints, allpoints = self._find_path(map, xStart, yStart, radius)
         waypoints = self._move_waipoints_away_from_obstacles(map, waypoints, radius)
         return waypoints, allpoints
 
+    def _find_all_unknown(self, map, robot_radius):
+        """
+        Find coordinates of all spots that are unkown:
 
+        Parameters:
+        map: the unlabled map
+
+        Returns:
+        map: the updated map with the goals set
+        unknown_spots ([]): Array of tuple (x,y) of the goals 
+        """
+        num_rows = len(map)
+        num_cols = len(map[0])
+
+        list_unknown_spots = []
+
+        for row in range(robot_radius, num_rows - robot_radius):
+            for col in range(robot_radius, num_cols - robot_radius):
+                if map[row][col] == 0:
+                    addGoal = False
+                    surrounding_any_wall = map[row - robot_radius : row + robot_radius + 1, col - robot_radius : col + robot_radius + 1] == self._value_wall
+                    if map[row - 1][col] == -1 and not any(np.any(surrounding_any_wall, axis = 0)) and not any(np.any(surrounding_any_wall, axis = 1)):
+                        map[row][col] = self._value_goal
+                        addGoal = True
+                    if map[row + 1][col] == -1 and not any(np.any(surrounding_any_wall, axis = 0)) and not any(np.any(surrounding_any_wall, axis = 1)):
+                        map[row][col] = self._value_goal
+                        addGoal = True
+                    if map[row][col - 1] == -1 and not any(np.any(surrounding_any_wall, axis = 0)) and not any(np.any(surrounding_any_wall, axis = 1)):
+                        map[row][col] = self._value_goal
+                        addGoal = True
+                    if map[row][col + 1] == -1 and not any(np.any(surrounding_any_wall, axis = 0)) and not any(np.any(surrounding_any_wall, axis = 1)):
+                        map[row][col] = self._value_goal
+                        addGoal = True
+                    
+                    if addGoal:
+                        list_unknown_spots.append((col, row))
+        
+        return map, list_unknown_spots
+        
