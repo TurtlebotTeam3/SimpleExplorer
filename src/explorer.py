@@ -29,7 +29,7 @@ class Explorer:
         self.map_updated = False
         self.scan = []
         self.waypoints = []
-        self.robot_radius = 1
+        self.robot_radius = 2
         self.map_resolution = 0
         self.robot_x = 0
         self.robot_x_pose = 0
@@ -92,7 +92,7 @@ class Explorer:
                 self._publish_point(0, 0)
                 self.rate.sleep()
 
-            # for (x, y) in allpoints:
+            #for (x, y) in allpoints:
             #    self._publish_point(x, y)
             #    self.rate.sleep()
 
@@ -158,6 +158,10 @@ class Explorer:
                         return col , row
 
     def _navigate(self):
+        self._navigation_move_base()
+        # self._navigation_move_to_goal()
+    
+    def _navigation_move_to_goal(self):
         # check if waypoints are available
         if len(self.waypoints) > 0:
             self.is_navigating = True
@@ -170,12 +174,28 @@ class Explorer:
             # self.waypoints = []
 
             self._move_2(x,y)
-            # success = self._move_1(x, y)
-            # if not success:
-                # when not success plan new path
-            #    self.waypoints = []
         else:
             self.is_navigating = False
+
+    def _navigation_move_base(self):
+        # check if waypoints are available
+        if len(self.waypoints) > 0:
+            self.is_navigating = True
+            # get waypoint and start moving towards it
+            # when success the process next
+            
+            # (x, y) = self.waypoints.pop(0) # visit all way points
+            # send final goal
+            (x, y) = self.waypoints[len(self.waypoints) - 1]
+            self.waypoints = []
+
+            success = self._move_1(x, y)
+            if not success:
+                # when not success plan new path
+                self.waypoints = []
+        else:
+            self.is_navigating = False
+
 
     def _move_1(self, x, y):
         """
