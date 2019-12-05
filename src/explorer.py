@@ -29,7 +29,7 @@ class Explorer:
         self.map_updated = False
         self.scan = []
         self.waypoints = []
-        self.robot_radius = 2
+        self.robot_radius = 1
         self.map_resolution = 0
         self.robot_x = 0
         self.robot_x_pose = 0
@@ -43,6 +43,7 @@ class Explorer:
         self.wavefront = Wavefront()
         self.transformListener = TransformListener()
         self.spam_clicked_point = False
+        self.waypointsAvailable = False
 
         self.move_base_client = actionlib.SimpleActionClient(
             'move_base', MoveBaseAction)
@@ -55,9 +56,11 @@ class Explorer:
         self.pub_goal = rospy.Publisher('move_to_goal/goal', Pose, queue_size=1)
         self.sub_goal_reached = rospy.Subscriber('/move_to_goal/reached', Bool, self._goal_reached_callback)
 
+        self.received_map = False
+
         self.rate = rospy.Rate(20)
 
-        rospy.spin()
+        #rospy.spin()
 
     def _map_callback(self, data):
         self.map_resolution = data.info.resolution
@@ -65,46 +68,52 @@ class Explorer:
         self.map_width = data.info.width
         self.map_offset_x = data.info.origin.position.x
         self.map_offset_y = data.info.origin.position.y
+        self.map = np.reshape(data.data, (data.info.height, data.info.width))
+        self.received_map = True
+    
+    def run(self):
+        while not rospy.is_shutdown():
+            if self.robot_pose_available and not self.is_navigating and not self.is_searching_unknown_space and self.received_map:    
+                if(self.waypointsAvailable == True):
+                    self._navigate()
+                else:
+                    self._calculate()
+            self.rate.sleep()
+
+    def _calculate(self):
+        print('Calculating freespace')
+        #blow up walls
+        map = self._blow_up_wall(self.map)
+        np.savetxt("map_normal.csv", self.map , delimiter=",", fmt='%1.3f')
+        np.savetxt("map_blowup.csv", map , delimiter=",", fmt='%1.3f')
+
+        robo_x = self.robot_x
+        robo_y = self.robot_y
+
+        self.is_searching_unknown_space = True
+        # search for an unkown space
+        #goal_x, goal_y = self._search_for_unknown_space(blowup, robo_x, robo_y)
+        # get the waypoints to the unkown space
         
-        # reshape the map
-        map = np.reshape(data.data, (data.info.height, data.info.width))
-        self._map_update(map)
-       
+        self.waypoints, allpoints = self.wavefront.find_unknown(map,self.robot_x, self.robot_y, self.robot_radius)
+        
+        # clear clicked points
+        for i in range(100):            
+            self._publish_point(0, 0)
+            self.rate.sleep()
 
-    def _map_update(self, map):
-        if self.robot_pose_available and not self.is_navigating and not self.is_searching_unknown_space:
-            self.is_searching_unknown_space = True
-            # blow up map
-            map = self._blow_up_map(map)
-            # search for an unkown space
-            # x, y = self._search_for_unknown_space(map)
-            print('Calculating waypoints')
-            self.waypoints, allpoints = self.wavefront.findUnknown(map,self.robot_x, self.robot_y, self.robot_radius)
-            # get the waypoints to the unkown space
-            
-            #self.waypoints = self.wavefront.run(
-            #     map, x, y, self.robot_x, self.robot_y, self.robot_radius)
-            # self.wavefront.findUnknown(self.map, self.robot_x, self.robot_y, self.robot_radius)
-            # self.waypoints.append((x,y))
+        #for (x, y) in allpoints:
+        #    self._publish_point(x, y)
+        #    self.rate.sleep()
 
-            # clear clicked points
-            for i in range(100):            
-                self._publish_point(0, 0)
-                self.rate.sleep()
+        for (x, y) in self.waypoints:
+            self._publish_point(x, y)
+            self.rate.sleep()
+        
+        self.waypointsAvailable = True
+        self.is_searching_unknown_space = False
 
-            #for (x, y) in allpoints:
-            #    self._publish_point(x, y)
-            #    self.rate.sleep()
-
-            for (x, y) in self.waypoints:
-                self._publish_point(x, y)
-                self.rate.sleep()
-
-            self.is_searching_unknown_space = False
-            #start navigating
-            self._navigate()
-
-    def _blow_up_map(self, map):
+    def _blow_up_wall(self, map):
         #blow up walls
         blowUpCellNum = 1
         tmp_map = copy.deepcopy(map)
@@ -158,8 +167,28 @@ class Explorer:
                         return col , row
 
     def _navigate(self):
-        self._navigation_move_base()
-        # self._navigation_move_to_goal()
+        # get waypoint and start moving towards it
+        # when success the process next
+        self.is_navigating = True
+
+        if(len(self.waypoints) > 0):
+            print self.waypoints
+            #(x, y, direction) = self.waypoints.pop(0)
+            (x, y) = self.waypoints.pop(len(self.waypoints) - 1)
+            self.waypoints = []
+            print self.waypoints
+            # self.waypointsAvailable = True
+            success = self._move_1(x, y)
+            if success:
+                # next point
+                self._navigate()
+            else:
+                #self._move(self.robot_x, self.robot_y)
+                self._navigate()
+        else:
+            self.is_navigating = False
+            self.waypointsAvailable = False
+            #time.sleep(5)
     
     def _navigation_move_to_goal(self):
         # check if waypoints are available
@@ -225,6 +254,7 @@ class Explorer:
             self._navigate()
         else:
             print('Faild driving to: ' + str(x) + ' | ' + str(y))
+            self.move_base_client.cancel_goal()
             self.is_navigating = False
 
     def _move_2(self, x, y):
@@ -259,5 +289,6 @@ class Explorer:
 if __name__ == '__main__':
     try:
         explorer=Explorer()
+        explorer.run()
     except rospy.ROSInterruptException:
         pass
