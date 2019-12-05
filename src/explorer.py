@@ -15,7 +15,7 @@ import copy
 import math
 import threading
 import time
-
+import queue
 
 class Explorer:
 
@@ -84,40 +84,34 @@ class Explorer:
         robo_y = self.robot_y
 
         self.is_searching_unknown_space = True
+        self.waypoints = self._search_for_unknown_space(blowup, robo_x, robo_y)
         # search for an unkown space
         #goal_x, goal_y = self._search_for_unknown_space(blowup, robo_x, robo_y)
         # get the waypoints to the unkown space
-        
-        self.waypoints = self.wavefront.run(blowup, robo_x, robo_y)
+        #self.waypoints = self.wavefront.run(blowup, robo_x, robo_y)
         self.waypointsFound = True
         self.is_searching_unknown_space = False
 
     def _search_for_unknown_space(self, map, robo_x, robo_y):
-        map_temp = copy.deepcopy(map)
-        num_rows = len(map_temp)
-        num_cols = len(map_temp[0])
-        size = 1
-        map_temp[robo_y][robo_x] = 55
-        for row in range(size, num_rows - 1 - size):
-            for col in range(size, num_cols - 1 - size) :
-                area = map_temp[col - size : col + size + 1, row - size : row + size + 1 ]
-                
-                if(map_temp[col][row] == 55):
-                    map_temp[col - size : col + size + 1, row - size : row + size + 1 ] = 88
-                    map_temp[col][row] = 55
-                
-                num_hundret = np.count_nonzero(area == 100)
-                num_neg_one = np.count_nonzero(area == -1)
-                num_zero = np.count_nonzero(area == 0)
+        start_queue = queue.Queue()
+        start_queue.put((robo_x,robo_y))
+        BFS_results = self._BFS(start_queue)
 
-                if (num_hundret == 0) and (num_neg_one > 0) and (num_neg_one < 3) and (num_zero > 0):
-                    if(map_temp[col][row] == 0):
-                        #print "found"
-                        #print col, row
-                        map_temp[col][row] = 77
-                        np.savetxt("unkown_space.csv", map_temp , delimiter=",", fmt='%1.3f')
-                        return col, row
-        #np.savetxt("unkown_space.csv", map_temp , delimiter=",", fmt='%1.3f')
+
+    def _BFS(self,map,queue=None):
+        
+        current_index = queue.get()
+        current_x,current_y = current_index[0],current_index[1]
+
+        element = map[current_y,current_x]
+
+        if element == -1: return current_x,current_y
+
+        for n in range(current_x-1,current_x+2):
+            for m in range(current_y-1,current_y+2):
+                if not (n==current_x and m==current_y) and n>-1 and m>-1 and n<map.shape[0] and m<map.shape[1] and (n,m) not in queue.queue :
+                        queue.put((n,m))    
+        return self._BFS(queue)
     
     def _blow_up_walls(self, map):
         map_old = copy.deepcopy(map)
