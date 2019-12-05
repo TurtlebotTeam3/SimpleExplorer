@@ -41,6 +41,7 @@ class Wavefront:
         #currentValue = -2
         waypoints = []
         allpoints = []
+        first = True
 
         run = True
         while run == True:
@@ -58,6 +59,8 @@ class Wavefront:
 
                 direction_changed, direction = self._detect_direction_change(direction, currentX, currentY, lastX, lastY)
                 if direction_changed:
+                    if first:
+                        first = False
                     waypoints.append((lastX, lastY))
                 allpoints.append((currentX, currentY))
 
