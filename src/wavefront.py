@@ -124,6 +124,8 @@ class Wavefront:
         while run == True:
             nextLowestAdjeacent = self._get_next_lowest_adjeacent(
                 map, currentX, currentY, radius)
+            if nextLowestAdjeacent[0] == 0 and nextLowestAdjeacent[1] == 0 and nextLowestAdjeacent[2] == 0:
+                return None, None, None
 
             if nextLowestAdjeacent[2] != self._value_goal:
                 lastX = currentX
@@ -396,8 +398,11 @@ class Wavefront:
         np.savetxt("map_labeled.csv", map , delimiter=",", fmt='%1.3f')
 
         map, waypoints, allpoints = self._find_path(map, xStart, yStart, radius)
-        waypoints = self._move_waipoints_away_from_obstacles(map, waypoints, radius)
-        return waypoints, allpoints
+        if waypoints == None and allpoints == None:
+            return None, None
+        else:
+            waypoints = self._move_waipoints_away_from_obstacles(map, waypoints, radius)
+            return waypoints, allpoints
 
     def _find_all_unknown(self, map, robot_radius):
         """
