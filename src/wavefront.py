@@ -391,12 +391,18 @@ class Wavefront:
 
         # map = self._label_adjacent(map, xStart, yStart)
         np.savetxt("map.csv", map , delimiter=",", fmt='%1.3f')
+        print("--> Find Unkown Freespace")
         map, goals = self._find_all_unknown(map, radius)
+        
         np.savetxt("map_goals.csv", map , delimiter=",", fmt='%1.3f')
+        print('--> Label Freespace')
         map, max_val = self._label_cells(map, goals)
         #map, max_val = self._label_cells(map, [(xStart, yStart)])
         np.savetxt("map_labeled.csv", map , delimiter=",", fmt='%1.3f')
 
+        #raw_input("ddd")
+
+        print('--> Find Path')
         map, waypoints, allpoints = self._find_path(map, xStart, yStart, radius)
         if waypoints == None and allpoints == None:
             return None, None

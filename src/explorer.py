@@ -45,6 +45,8 @@ class Explorer:
         self.spam_clicked_point = False
         self.waypointsAvailable = False
         self.mapComplete  = False
+        self.robot_goal_x = 0
+        self.robot_goal_y = 0
 
         self.move_base_client = actionlib.SimpleActionClient(
             'move_base', MoveBaseAction)
@@ -88,8 +90,8 @@ class Explorer:
         print('Calculating freespace')
         #blow up walls
         map = self._blow_up_wall(self.map)
-        np.savetxt("map_normal.csv", self.map , delimiter=",", fmt='%1.3f')
-        np.savetxt("map_blowup.csv", map , delimiter=",", fmt='%1.3f')
+        #np.savetxt("map_normal.csv", self.map , delimiter=",", fmt='%1.3f')
+        #np.savetxt("map_blowup.csv", map , delimiter=",", fmt='%1.3f')
 
         robo_x = self.robot_x
         robo_y = self.robot_y
@@ -100,18 +102,21 @@ class Explorer:
         # get the waypoints to the unkown space
         
         self.waypoints, allpoints = self.wavefront.find_unknown(map,self.robot_x, self.robot_y, self.robot_radius)
+
+
         if self.waypoints == None and allpoints == None:
             self.mapComplete = True
             self.move_base_client.cancel_goal()
         else: 
             # clear clicked points
+
             for i in range(100):            
                 self._publish_point(0, 0)
                 self.rate.sleep()
 
             #for (x, y) in allpoints:
-            #    self._publish_point(x, y)
-            #    self.rate.sleep()
+                #self._publish_point(x, y)
+                #self.rate.sleep()
 
             for (x, y) in self.waypoints:
                 self._publish_point(x, y)
@@ -156,6 +161,18 @@ class Explorer:
 
             self.robot_pose_available = True
 
+            #print self.robot_x_pose, self.robot_goal_x
+            #print self.robot_y_pose, self.robot_goal_y
+            
+            #if self.robot_goal_x != 0 and self.robot_goal_y != 0:
+            #    goal_reached_radius = 0.1
+            #    if (self.robot_x_pose < self.robot_goal_x + goal_reached_radius and self.robot_x_pose > self.robot_goal_x - goal_reached_radius) and (self.robot_y_pose < self.robot_goal_y + goal_reached_radius and self.robot_y_pose > self.robot_goal_y - goal_reached_radius):
+            #        print "Robot near Goal (Goal Reached)"
+            #        self.move_base_client.cancel_goal()
+            #        self.is_navigating = False
+            #        self.robot_goal_x = 0
+            #        self.robot_goal_y = 0
+
     def _search_for_unknown_space(self, map):
         num_rows = len(map)
         num_cols = len(map[0])
@@ -179,11 +196,14 @@ class Explorer:
         self.is_navigating = True
 
         if(len(self.waypoints) > 0):
-            print self.waypoints
-            #(x, y, direction) = self.waypoints.pop(0)
+            #print self.waypoints
+            #(x, y) = self.waypoints.pop(0)
             (x, y) = self.waypoints.pop(len(self.waypoints) - 1)
             self.waypoints = []
             print self.waypoints
+            #save goal
+            #self.robot_goal_x = x
+            #self.robot_goal_y = y
             # self.waypointsAvailable = True
             success = self._move_1(x, y)
             if success:
@@ -195,6 +215,8 @@ class Explorer:
         else:
             self.is_navigating = False
             self.waypointsAvailable = False
+            self.robot_goal_x = 0
+            self.robot_goal_y = 0
             #time.sleep(5)
     
     def _navigation_move_to_goal(self):
@@ -204,10 +226,10 @@ class Explorer:
             # get waypoint and start moving towards it
             # when success the process next
             
-            (x, y) = self.waypoints.pop(0) # visit all way points
+            #(x, y) = self.waypoints.pop(0) # visit all way points
             # send final goal
-            # (x, y) = self.waypoints[len(self.waypoints) - 1]
-            # self.waypoints = []
+            (x, y) = self.waypoints[len(self.waypoints) - 1]
+            self.waypoints = []
 
             self._move_2(x,y)
         else:
@@ -248,13 +270,16 @@ class Explorer:
         target_x = (x * self.map_resolution) + self.map_offset_x
         target_y = (y * self.map_resolution) + self.map_offset_y
 
+        #save goal
+        self.robot_goal_x = target_x
+        self.robot_goal_y = target_y
+
         goal.target_pose.pose.position.x = target_x
         goal.target_pose.pose.position.y = target_y
         goal.target_pose.pose.orientation.w = 1
 
-
         self.move_base_client.send_goal(goal)
-        success = self.move_base_client.wait_for_result(rospy.Duration(25))
+        success = self.move_base_client.wait_for_result(rospy.Duration(15))
         #When success then go to next waypoint otherwise stop navigating and check map
         if success:
             print('Reached: ' + str(x) + ' | ' + str(y))
@@ -263,6 +288,8 @@ class Explorer:
             print('Faild driving to: ' + str(x) + ' | ' + str(y))
             self.move_base_client.cancel_goal()
             self.is_navigating = False
+            self.robot_goal_x = 0
+            self.robot_goal_y = 0
 
     def _move_2(self, x, y):
         """
