@@ -122,22 +122,13 @@ class Explorer:
 
     def _blow_up_wall(self, map):
         #blow up walls
-        blowUpCellNum = 1
+        blowUpCellNum = 3
         tmp_map = copy.deepcopy(map)
         for row in range(0, len(tmp_map)):
             for col in range(0 , len(tmp_map[0])):
                 if map[row,col] == 100 and row >= blowUpCellNum and col >= blowUpCellNum and row <= len(tmp_map) - blowUpCellNum and col <= len(tmp_map[0]) - blowUpCellNum:
                     tmp_map[row - blowUpCellNum : row + blowUpCellNum, col - blowUpCellNum : col + blowUpCellNum] = 100
         return tmp_map
-
-    def _goal_reached_callback(self, reached):
-        print('Reached: ' + str(reached))
-        if reached:
-            self._navigate()
-        else:
-            self.waypoints = []
-            self.is_navigating = False
-
 
     def _scan_callback(self, scan):
         pass
@@ -180,59 +171,26 @@ class Explorer:
 
         if(len(self.waypoints) > 0):
             print self.waypoints
-            #(x, y, direction) = self.waypoints.pop(0)
-            (x, y) = self.waypoints.pop(len(self.waypoints) - 1)
-            self.waypoints = []
+            (x, y) = self.waypoints.pop(0)
+            # (x, y) = self.waypoints.pop(len(self.waypoints) - 1)
+            # self.waypoints = []
             print self.waypoints
             # self.waypointsAvailable = True
-            success = self._move_1(x, y)
-            if success:
-                # next point
-                self._navigate()
-            else:
-                #self._move(self.robot_x, self.robot_y)
-                self._navigate()
+            
+            # -- move base --
+            #self._move_1(x, y)
+
+            # -- move to goal --
+            self._move_2(x, y)
+
         else:
             self.is_navigating = False
             self.waypointsAvailable = False
-            #time.sleep(5)
+
     
-    def _navigation_move_to_goal(self):
-        # check if waypoints are available
-        if len(self.waypoints) > 0:
-            self.is_navigating = True
-            # get waypoint and start moving towards it
-            # when success the process next
-            
-            (x, y) = self.waypoints.pop(0) # visit all way points
-            # send final goal
-            # (x, y) = self.waypoints[len(self.waypoints) - 1]
-            # self.waypoints = []
-
-            self._move_2(x,y)
-        else:
-            self.is_navigating = False
-
-    def _navigation_move_base(self):
-        # check if waypoints are available
-        if len(self.waypoints) > 0:
-            self.is_navigating = True
-            # get waypoint and start moving towards it
-            # when success the process next
-            
-            # (x, y) = self.waypoints.pop(0) # visit all way points
-            # send final goal
-            (x, y) = self.waypoints[len(self.waypoints) - 1]
-            self.waypoints = []
-
-            success = self._move_1(x, y)
-            if not success:
-                # when not success plan new path
-                self.waypoints = []
-        else:
-            self.is_navigating = False
-
-
+    # # # # # # # # # # # # # # # # # # # # 
+    #              Move Base
+    # # # # # # # # # # # # # # # # # # # #
     def _move_1(self, x, y):
         """
         Moves the robot to a place defined by coordinates x and y.
@@ -264,6 +222,11 @@ class Explorer:
             self.move_base_client.cancel_goal()
             self.is_navigating = False
 
+
+
+    # # # # # # # # # # # # # # # # # # # # 
+    #              Move to goal
+    # # # # # # # # # # # # # # # # # # # #
     def _move_2(self, x, y):
         """
         Moves the rob2t to a place defined by coordinates x and y.
@@ -280,7 +243,6 @@ class Explorer:
 
         self.pub_goal.publish(goal)
 
-
     def _publish_point(self, x, y):
         pt_stamped = PointStamped()
 
@@ -292,6 +254,14 @@ class Explorer:
         pt_stamped.point.z = 0
 
         self.pub_point.publish(pt_stamped)
+
+    def _goal_reached_callback(self, reached):
+        print('Reached: ' + str(reached))
+        if reached:
+            self._navigate()
+        else:
+            self.waypoints = []
+            self.is_navigating = False
 
 if __name__ == '__main__':
     try:
