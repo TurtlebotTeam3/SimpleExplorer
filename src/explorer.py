@@ -45,6 +45,7 @@ class Explorer:
         self.spam_clicked_point = False
         self.waypointsAvailable = False
         self.mapComplete  = False
+        self.mapCompletePrint = False
 
         self.move_base_client = actionlib.SimpleActionClient(
             'move_base', MoveBaseAction)
@@ -82,7 +83,9 @@ class Explorer:
                         self._calculate()
                 self.rate.sleep()
             else:
-                print "---> MAP COMPLETE <---"
+                if not self.mapCompletePrint:
+                    self.mapCompletePrint = True
+                    print "---> MAP COMPLETE <---"
 
     def _calculate(self):
         print('Calculating freespace')
