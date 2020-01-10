@@ -258,55 +258,7 @@ class Wavefront:
         return nextA
 
     def _move_waipoints_away_from_obstacles(self, map, waypoints, radius):
-        waypoints = self._move_single_point(map, waypoints, radius)
-        waypoints = self._move_point_pairs(map, waypoints, radius)
-        return waypoints
-
-    def _move_single_point(self, map, waypoints, radius):
         for i in range(len(waypoints) - 1, -1, -1):
-            (x, y) = waypoints[i]
-            x_org = cp.copy(x)
-            y_org = cp.copy(y)
-            all_clear = False
-            max_iter = 8
-
-            while not all_clear and max_iter != 0:
-                max_iter -= 1
-                all_clear = True
-                # map[waypoints[i][1] - radius : waypoints[i][1] + radius + 1, waypoints[i][10] - radius : waypoints[i][0] + radius + 1] == 1
-                any_wall_right = map[y - radius : y + radius + 1 , x + radius] == 1
-                any_wall_left = map[y - radius : y + radius + 1, x - radius] == 1
-                any_wall_top = map[y + radius, x - radius : x + radius + 1] == 1
-                any_wall_bottom = map[y - radius, x - radius : x + radius + 1] == 1
-                
-                if np.any(any_wall_right): # and any(np.any(any_wall_right, axis = 1)):
-                    x -= 1
-                    all_clear = False
-                elif np.any(any_wall_left): # and any(np.any(any_wall_left, axis = 1)):
-                    x += 1
-                    all_clear = False
-                elif np.any(any_wall_top): # and any(np.any(any_wall_top, axis = 1)):
-                    y -= 1
-                    all_clear = False
-                elif np.any(any_wall_bottom): # and any(np.any(any_wall_bottom, axis = 1)):
-                    y += 1
-                    all_clear = False
-
-            if i > 0:
-                if x_org != x:
-                    waypoints[i] = (x, y)
-                    (x1, y1) = waypoints[i - 1]
-                    waypoints[i - 1] = (x, y1)
-                
-                if y_org != y:
-                    waypoints[i] = (x, y)
-                    (x1, y1) = waypoints[i - 1]
-                    waypoints[i - 1] = (x1, y)
-
-        return waypoints
-
-    def _move_point_pairs(self, map, waypoints, radius):
-        for i in range(len(waypoints) - 1, 0, -1):
             (x1, y1) = waypoints[i]
             (x2, y2) = waypoints[i - 1]
             all_clear = False
@@ -361,9 +313,50 @@ class Wavefront:
             
             waypoints[i] = (x1, y1)
             waypoints[i - 1] = (x2, y2)
-        
         return waypoints
 
+    def _move_single_point(self, map, waypoints, radius):
+        for i in range(len(waypoints) - 1, -1, -1):
+            (x, y) = waypoints[i]
+            x_org = cp.copy(x)
+            y_org = cp.copy(y)
+            all_clear = False
+            max_iter = 8
+
+            while not all_clear and max_iter != 0:
+                max_iter -= 1
+                all_clear = True
+                # map[waypoints[i][1] - radius : waypoints[i][1] + radius + 1, waypoints[i][10] - radius : waypoints[i][0] + radius + 1] == 1
+                any_wall_right = map[y - radius : y + radius + 1 , x + radius] == 1
+                any_wall_left = map[y - radius : y + radius + 1, x - radius] == 1
+                any_wall_top = map[y + radius, x - radius : x + radius + 1] == 1
+                any_wall_bottom = map[y - radius, x - radius : x + radius + 1] == 1
+                
+                if np.any(any_wall_right): # and any(np.any(any_wall_right, axis = 1)):
+                    x -= 1
+                    all_clear = False
+                elif np.any(any_wall_left): # and any(np.any(any_wall_left, axis = 1)):
+                    x += 1
+                    all_clear = False
+                elif np.any(any_wall_top): # and any(np.any(any_wall_top, axis = 1)):
+                    y -= 1
+                    all_clear = False
+                elif np.any(any_wall_bottom): # and any(np.any(any_wall_bottom, axis = 1)):
+                    y += 1
+                    all_clear = False
+
+            if i > 0:
+                if x_org != x:
+                    waypoints[i] = (x, y)
+                    (x1, y1) = waypoints[i - 1]
+                    waypoints[i - 1] = (x, y1)
+                
+                if y_org != y:
+                    waypoints[i] = (x, y)
+                    (x1, y1) = waypoints[i - 1]
+                    waypoints[i - 1] = (x1, y)
+
+        return waypoints
 
     def run(self, map, xGoal, yGoal, xStart, yStart, radius):
         """
@@ -401,7 +394,7 @@ class Wavefront:
         if waypoints == None and allpoints == None:
             return None, None
         else:
-            waypoints = self._move_waipoints_away_from_obstacles(map, waypoints, radius)
+            # waypoints = self._move_waipoints_away_from_obstacles(map, waypoints, 3)
             return waypoints, allpoints
 
     def _find_all_unknown(self, map, robot_radius):
