@@ -130,7 +130,7 @@ class Explorer:
         for row in range(0, len(tmp_map)):
             for col in range(0 , len(tmp_map[0])):
                 if map[row,col] == 100 and row >= blowUpCellNum and col >= blowUpCellNum and row <= len(tmp_map) - blowUpCellNum and col <= len(tmp_map[0]) - blowUpCellNum:
-                    tmp_map[row - blowUpCellNum : row + blowUpCellNum, col - blowUpCellNum : col + blowUpCellNum] = 100
+                    tmp_map[row - blowUpCellNum : row +1 + blowUpCellNum, col - blowUpCellNum : col +1 + blowUpCellNum] = 100
         return tmp_map
 
     def _scan_callback(self, scan):
