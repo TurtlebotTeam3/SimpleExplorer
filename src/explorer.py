@@ -41,7 +41,7 @@ class Explorer:
         self.map_offset_y = 0
         self.map =[[]]
         self.wavefront = Wavefront()
-        self.transformListener = TransformListener()
+        self.tf = TransformListener()
         self.spam_clicked_point = False
         self.waypointsAvailable = False
         self.mapComplete  = False
@@ -125,7 +125,7 @@ class Explorer:
 
     def _blow_up_wall(self, map):
         #blow up walls
-        blowUpCellNum = 3
+        blowUpCellNum = 2
         tmp_map = copy.deepcopy(map)
         for row in range(0, len(tmp_map)):
             for col in range(0 , len(tmp_map[0])):
@@ -140,15 +140,33 @@ class Explorer:
         if self.map_resolution > 0:
             # TODO: this seems not to be correct, robot is somewhere in the nowhere
             # convert from robot coordinates to map coordinates
-            self.robot_x_pose = odom.pose.pose.position.x
-            self.robot_y_pose = odom.pose.pose.position.y
 
-            self.robot_x = int(math.floor((self.robot_x_pose - self.map_offset_x)/self.map_resolution))
-            self.robot_y = int(math.floor((self.robot_y_pose - self.map_offset_y)/self.map_resolution))
-            # self.robot_x = int(math.ceil(self.map_width/2 + self.map_offset_x + self.robot_x_pose/self.map_resolution))
-            # self.robot_y = int(math.ceil(self.map_height/2 + self.map_offset_y + self.robot_y_pose/self.map_resolution))
+            #if self.tf.frameExists("base_link") and self.tf.frameExists("map"):
+            try:
+                t = self.tf.getLatestCommonTime("map", "base_footprint")
+                position, quaternion = self.tf.lookupTransform("map", "base_footprint", t)
+                odom.pose.pose.position.x = position[0]
+                odom.pose.pose.position.y = position[1]
+                odom.pose.pose.position.z = position[2]
+                odom.pose.pose.orientation.x = quaternion[0]
+                odom.pose.pose.orientation.y = quaternion[1]
+                odom.pose.pose.orientation.z = quaternion[2]
+                odom.pose.pose.orientation.w = quaternion[3]
 
-            self.robot_pose_available = True
+                self.robot_y_pose = odom.pose.pose.position.y
+                self.robot_x_pose = odom.pose.pose.position.x
+
+                self.robot_x = int(math.floor((self.robot_x_pose - self.map_offset_x)/self.map_resolution))
+                self.robot_y = int(math.floor((self.robot_y_pose - self.map_offset_y)/self.map_resolution))
+                self.robot_pose_available = True
+            except:
+                print('transform not ready')
+                self.robot_y_pose = odom.pose.pose.position.y
+                self.robot_x_pose = odom.pose.pose.position.x
+
+                self.robot_x = int(math.floor((self.robot_x_pose - self.map_offset_x)/self.map_resolution))
+                self.robot_y = int(math.floor((self.robot_y_pose - self.map_offset_y)/self.map_resolution))
+
 
     def _search_for_unknown_space(self, map):
         num_rows = len(map)
