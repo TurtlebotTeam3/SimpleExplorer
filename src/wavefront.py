@@ -275,10 +275,10 @@ class Wavefront:
                     # get a boolean array indicating if there is a wall above or below
                     if x1 < x2:
                         any_wall_top = map[y1 + radius, x1 : x2 + 1] == 1
-                        any_wall_bottom = map[y1 - radius, x1: x2 + 1] == 1
+                        any_wall_bottom = map[y1 - radius, x1 : x2 + 1] == 1
                     else:
                         any_wall_top = map[y1 + radius, x2 : x1 + 1] == 1
-                        any_wall_bottom = map[y1 - radius, x2: x1 + 1] == 1
+                        any_wall_bottom = map[y1 - radius, x2 : x1 + 1] == 1
                     
                     # when there is a wall then correct the y axis to clear them
                     if np.any(any_wall_top):
@@ -298,7 +298,7 @@ class Wavefront:
                     # get a boolean array indicating if there is a wall left or right
                     if y1 < y2:
                         any_wall_right = map[y1 : y2 + 1 , x1 + radius] == 1
-                        any_wall_left = map[y1 : y2 + 1, x1 - radius] == 1
+                        any_wall_left = map[y1 : y2 + 1, x1 - radius ] == 1
                     else:
                         any_wall_right = map[y2 : y1 + 1 , x1 + radius] == 1
                         any_wall_left = map[y2 : y1 + 1, x1 - radius] == 1
