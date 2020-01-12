@@ -98,9 +98,6 @@ class Explorer:
         robo_y = self.robot_y
 
         self.is_searching_unknown_space = True
-        # search for an unkown space
-        #goal_x, goal_y = self._search_for_unknown_space(blowup, robo_x, robo_y)
-        # get the waypoints to the unkown space
         
         self.waypoints, allpoints = self.wavefront.find_unknown(map,self.robot_x, self.robot_y, self.robot_radius)
         if self.waypoints == None and allpoints == None:
@@ -167,23 +164,6 @@ class Explorer:
                 self.robot_x = int(math.floor((self.robot_x_pose - self.map_offset_x)/self.map_resolution))
                 self.robot_y = int(math.floor((self.robot_y_pose - self.map_offset_y)/self.map_resolution))
 
-
-    def _search_for_unknown_space(self, map):
-        num_rows = len(map)
-        num_cols = len(map[0])
-        for row in range(self.robot_radius, num_rows - self.robot_radius):
-            for col in range(self.robot_radius, num_cols - self.robot_radius):
-                if map[row][col] == 0:
-                    print('row: ' + str(row) + ' col: ' + str(col))
-                    surrounding_any_wall = map[row - self.robot_radius : row + self.robot_radius + 1, col - self.robot_radius : col + self.robot_radius + 1] == 100
-                    if map[row - 1][col] == -1 and not any(np.any(surrounding_any_wall, axis = 0)) and not any(np.any(surrounding_any_wall, axis = 1)):
-                        return col, row
-                    if map[row + 1][col] == -1 and not any(np.any(surrounding_any_wall, axis = 0)) and not any(np.any(surrounding_any_wall, axis = 1)):
-                        return col, row
-                    if map[row][col - 1] == -1 and not any(np.any(surrounding_any_wall, axis = 0)) and not any(np.any(surrounding_any_wall, axis = 1)):
-                        return col , row
-                    if map[row][col + 1] == -1 and not any(np.any(surrounding_any_wall, axis = 0)) and not any(np.any(surrounding_any_wall, axis = 1)):
-                        return col , row
 
     def _navigate(self):
         # get waypoint and start moving towards it
