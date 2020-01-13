@@ -119,11 +119,13 @@ class Wavefront:
         waypoints = []
         allpoints = []
         first = True
+        # 0 -> No / 1 -> Top / 2 -> Bottom / 3 -> Left / 4 -> Right
+        lastValueDirecton = 0
 
         run = True
         while run == True:
-            nextLowestAdjeacent = self._get_next_lowest_adjeacent(
-                map, currentX, currentY, radius)
+            nextLowestAdjeacent = self._get_next_lowest_adjeacent(map, currentX, currentY, radius, lastValueDirecton)
+            lastValueDirecton = nextLowestAdjeacent[3]
             if nextLowestAdjeacent[0] == 0 and nextLowestAdjeacent[1] == 0 and nextLowestAdjeacent[2] == 0:
                 return None, None, None
 
@@ -162,30 +164,30 @@ class Wavefront:
         
         return direction_changed, direction
 
-    def _get_highest_adjeacent(self, map, currentX, currentY):
+    def _get_first_adjeacent(self, map, currentX, currentY):
         """
         """
         tempX = 0
         tempY = 0
-        tempValue = 0
+        tempValue = 147456
 
         # check top
-        if(map[currentY - 1][currentX] > tempValue):
+        if(map[currentY - 1][currentX] < tempValue) and map[currentY - 1][currentX] != 1:
             tempX = currentX
             tempY = currentY - 1
             tempValue = map[currentY - 1][currentX]
         # check right
-        if (map[currentY][currentX + 1] > tempValue):
+        if (map[currentY][currentX + 1] < tempValue) and map[currentY][currentX + 1] != 1:
             tempX = currentX + 1
             tempY = currentY
             tempValue = map[currentY][currentX + 1]
         # check bottom
-        if (map[currentY + 1][currentX] > tempValue):
+        if (map[currentY + 1][currentX] < tempValue) and map[currentY + 1][currentX] != 1:
             tempX = currentX
             tempY = currentY + 1
             tempValue = map[currentY + 1][currentX]
         # check left
-        if (map[currentY][currentX - 1] > tempValue):
+        if (map[currentY][currentX - 1] < tempValue) and map[currentY][currentX - 1] != 1:
             tempX = currentX - 1
             tempY = currentY
             tempValue = map[currentY][currentX - 1]
@@ -194,68 +196,88 @@ class Wavefront:
 
         return highestAdjeacent
 
-    def _get_next_lowest_adjeacent(self, map, currentX, currentY,radius):
+    def _get_next_lowest_adjeacent(self, map, currentX, currentY, radius, lastValueDirecton):
         """
         """
-        tempX = 0
-        tempY = 0
-        tempValue = 0
-        found = False
+        tempLastValueDirecton = lastValueDirecton
+
+        tempTopX = 0
+        tempTopY = 0
+        tempTopValue = 0
+        tempBottomX = 0
+        tempBottomY = 0
+        tempBottomValue = 0
+        tempLeftX = 0
+        tempLeftY = 0
+        tempLeftValue = 0
+        tempRightX = 0
+        tempRightY = 0
+        tempRightValue = 0
 
         if map[currentY][currentX] == -2:
-            highestAdjeacent = self._get_highest_adjeacent(
-                map, currentX, currentY)
+            highestAdjeacent = self._get_first_adjeacent(map, currentX, currentY)
             tempValue = highestAdjeacent[2] + 1
         else:
             tempValue = map[currentY][currentX]
 
         # check top
-        if not found and map[currentY - 1][currentX] == tempValue - 1:
+        if map[currentY - 1][currentX] == tempValue - 1:
             row = currentY - 1
             col = currentX
             #surrounding_any_wall = map[row - radius : row + radius + 1, col - radius : col + radius + 1] == 1
             #if (not any(np.any(surrounding_any_wall, axis = 0)) and not any(np.any(surrounding_any_wall, axis = 1))) or map[row][col] == -2:
-            tempX = col
-            tempY = row
-            tempValue = map[row][col]
-            found = True
+            tempTopX = col
+            tempTopY = row
+            tempTopValue = map[row][col]
        
         # check bottom
-        if not found and map[currentY + 1][currentX] == tempValue - 1:
+        if map[currentY + 1][currentX] == tempValue - 1:
             row = currentY + 1
             col = currentX
             #surrounding_any_wall = map[row - radius : row + radius + 1, col - radius : col + radius + 1] == 1
             #if (not any(np.any(surrounding_any_wall, axis = 0)) and not any(np.any(surrounding_any_wall, axis = 1))) or map[row][col] == -2:
-            tempX = col
-            tempY = row
-            tempValue = map[row][col]
-            found = True
+            tempBottomX = col
+            tempBottomY = row
+            tempBottomValue = map[row][col]
         
         # check left
-        if not found and map[currentY][currentX - 1] == tempValue - 1:
+        if map[currentY][currentX - 1] == tempValue - 1:
             row = currentY
             col = currentX - 1
             #surrounding_any_wall = map[row - radius : row + radius + 1, col - radius : col + radius + 1] == 1
             #if (not any(np.any(surrounding_any_wall, axis = 0)) and not any(np.any(surrounding_any_wall, axis = 1))) or map[row][col] == -2:
-            tempX = col
-            tempY = row
-            tempValue = map[row][col]
-            found = True
+            tempLeftX = col
+            tempLeftY = row
+            tempLeftValue = map[row][col]
         
         # check right
-        if not found and map[currentY][currentX + 1] == tempValue - 1:
+        if map[currentY][currentX + 1] == tempValue - 1:
             row = currentY
             col = currentX + 1
             #surrounding_any_wall = map[row - radius : row + radius + 1, col - radius : col + radius + 1] == 1
             #if (not any(np.any(surrounding_any_wall, axis = 0)) and not any(np.any(surrounding_any_wall, axis = 1))) or map[row][col] == -2:
-            tempX = col
-            tempY = row
-            tempValue = map[row][col]
-            found = True
+            tempRightX = col
+            tempRightY = row
+            tempRightValue = map[row][col]
 
-        nextA = [tempX, tempY, tempValue]
-
-        return nextA
+        if tempLastValueDirecton == 1 and tempTopValue != 0:
+            return [tempTopX, tempTopY, tempTopValue, 1]
+        elif tempLastValueDirecton == 2 and tempBottomValue != 0:
+            return [tempBottomX, tempBottomY, tempBottomValue, 2]
+        elif tempLastValueDirecton == 3 and tempLeftValue != 0:
+            return [tempLeftX, tempLeftY, tempLeftValue, 3]
+        elif tempLastValueDirecton == 2 and tempRightValue != 0:
+            return [tempRightX, tempRightY, tempRightValue, 4]
+        elif tempTopValue != 0:
+            return [tempTopX, tempTopY, tempTopValue, 1]
+        elif tempBottomValue != 0:
+            return [tempBottomX, tempBottomY, tempBottomValue, 2]
+        elif tempLeftValue != 0:
+            return [tempLeftX, tempLeftY, tempLeftValue, 3]
+        elif tempRightValue != 0:
+            return [tempRightX, tempRightY, tempRightValue, 4]
+        else:
+            return [0, 0, 0, 0]
 
     def _move_waipoints_away_from_obstacles(self, map, waypoints, radius):
         for i in range(len(waypoints) - 1, -1, -1):
