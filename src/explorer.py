@@ -46,10 +46,12 @@ class Explorer:
         self.waypointsAvailable = False
         self.mapComplete  = False
         self.mapCompletePrint = False
+        self.pose = Pose()
 
         self.move_base_client = actionlib.SimpleActionClient(
             'move_base', MoveBaseAction)
-        self.odomSub = rospy.Subscriber('/odom', Odometry, self._odom_callback)
+        self.pose_subscriber = rospy.Subscriber('/simple_odom_pose',
+												Pose, self._update_pose)
         self.mapSub = rospy.Subscriber(
             '/map', OccupancyGrid, self._map_callback)
         self.scanSub = rospy.Subscriber('/scan', LaserScan, self._scan_callback)
@@ -136,33 +138,27 @@ class Explorer:
     def _scan_callback(self, scan):
         pass
 
-    def _odom_callback(self, odom):
+    def _update_pose(self, data):
         if self.map_resolution > 0:
-            # TODO: this seems not to be correct, robot is somewhere in the nowhere
-            # convert from robot coordinates to map coordinates
-
-            #if self.tf.frameExists("base_link") and self.tf.frameExists("map"):
             try:
-                t = self.tf.getLatestCommonTime("map", "base_footprint")
-                position, quaternion = self.tf.lookupTransform("map", "base_footprint", t)
-                odom.pose.pose.position.x = position[0]
-                odom.pose.pose.position.y = position[1]
-                odom.pose.pose.position.z = position[2]
-                odom.pose.pose.orientation.x = quaternion[0]
-                odom.pose.pose.orientation.y = quaternion[1]
-                odom.pose.pose.orientation.z = quaternion[2]
-                odom.pose.pose.orientation.w = quaternion[3]
+                self.pose.position.x = data.position.x
+                self.pose.position.y = data.position.y
+                self.pose.position.z = data.position.z
+                self.pose.orientation.x = data.orientation.x 
+                self.pose.orientation.y = data.orientation.y 
+                self.pose.orientation.z = data.orientation.z
+                self.pose.orientation.w = data.orientation.w 
 
-                self.robot_y_pose = odom.pose.pose.position.y
-                self.robot_x_pose = odom.pose.pose.position.x
+                self.robot_y_pose = self.pose.position.y
+                self.robot_x_pose = self.pose.position.x
 
                 self.robot_x = int(math.floor((self.robot_x_pose - self.map_offset_x)/self.map_resolution))
                 self.robot_y = int(math.floor((self.robot_y_pose - self.map_offset_y)/self.map_resolution))
                 self.robot_pose_available = True
             except:
                 print('transform not ready')
-                self.robot_y_pose = odom.pose.pose.position.y
-                self.robot_x_pose = odom.pose.pose.position.x
+                self.robot_y_pose = data.position.y
+                self.robot_x_pose = data.position.x
 
                 self.robot_x = int(math.floor((self.robot_x_pose - self.map_offset_x)/self.map_resolution))
                 self.robot_y = int(math.floor((self.robot_y_pose - self.map_offset_y)/self.map_resolution))
