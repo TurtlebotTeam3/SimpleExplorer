@@ -29,7 +29,7 @@ class Explorer:
         self.map_updated = False
         self.scan = []
         self.waypoints = []
-        self.robot_radius = 0
+        self.robot_radius = 1
         self.map_resolution = 0
         self.robot_x = 0
         self.robot_x_pose = 0
@@ -130,7 +130,8 @@ class Explorer:
                 if map[row,col] == 100 and row >= blowUpCellNum and col >= blowUpCellNum and row <= len(tmp_map) - blowUpCellNum and col <= len(tmp_map[0]) - blowUpCellNum:
                     # only blow up if not robot position
                     if (self.robot_y < (row - blowUpCellNum) or self.robot_y > (row + blowUpCellNum)) and (self.robot_x < (col - blowUpCellNum) or self.robot_x > (col + blowUpCellNum)): 
-                        tmp_map[row - blowUpCellNum : row + 1 + blowUpCellNum, col - blowUpCellNum : col + 1 + blowUpCellNum] = 100
+                        tmp_map[row - blowUpCellNum : row + 1 + blowUpCellNum, col] = 100
+                        tmp_map[row , col - blowUpCellNum : col + 1 + blowUpCellNum] = 100
         return tmp_map
 
     def _scan_callback(self, scan):
