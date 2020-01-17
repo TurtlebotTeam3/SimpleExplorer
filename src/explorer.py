@@ -29,7 +29,8 @@ class Explorer:
         self.map_updated = False
         self.scan = []
         self.waypoints = []
-        self.robot_radius = 2
+        self.robot_radius = 1
+        self.blowUpCellNum = 3
         self.map_resolution = 0
         self.robot_x = 0
         self.robot_x_pose = 0
@@ -42,7 +43,6 @@ class Explorer:
         self.map =[[]]
         self.wavefront = Wavefront()
         self.tf = TransformListener()
-        self.spam_clicked_point = False
         self.waypointsAvailable = False
         self.mapComplete  = False
         self.mapCompletePrint = False
@@ -124,15 +124,44 @@ class Explorer:
 
     def _blow_up_wall(self, map):
         #blow up walls
-        blowUpCellNum = 2
         tmp_map = copy.deepcopy(map)
         for row in range(0, len(tmp_map)):
             for col in range(0 , len(tmp_map[0])):
                 # check outside boundaries and if it is a wall
-                if map[row,col] == 100 and row >= blowUpCellNum and col >= blowUpCellNum and row <= len(tmp_map) - blowUpCellNum and col <= len(tmp_map[0]) - blowUpCellNum:
+                if map[row,col] == 100 and row >= self.blowUpCellNum and col >= self.blowUpCellNum and row <= len(tmp_map) - self.blowUpCellNum and col <= len(tmp_map[0]) - self.blowUpCellNum:
                     # only blow up if not robot position
-                    if (self.robot_y < (row - blowUpCellNum) or self.robot_y > (row + blowUpCellNum)) and (self.robot_x < (col - blowUpCellNum) or self.robot_x > (col + blowUpCellNum)): 
-                        tmp_map[row - blowUpCellNum : row + 1 + blowUpCellNum, col - blowUpCellNum : col + 1 + blowUpCellNum] = 100
+                    # if (self.robot_y < (row - self.blowUpCellNum) or self.robot_y > (row + self.blowUpCellNum)) and (self.robot_x < (col - self.blowUpCellNum) or self.robot_x > (col + self.blowUpCellNum)): 
+                    tmp_map[row - self.blowUpCellNum : row + 1 + self.blowUpCellNum, col - self.blowUpCellNum : col + 1 + self.blowUpCellNum] = 100
+
+
+        # Free up robot top if no wall in org map
+        if self.robot_y - self.robot_radius >= 0 and  map[self.robot_y - self.robot_radius, self.robot_x] != 100:
+            for y in range(self.robot_y - self.robot_radius, self.robot_y + 1):
+                for x in range(self.robot_x - self.robot_radius, self.robot_x + self.robot_radius + 1):
+                    if y >= 0 and x >= 0 and y < len(tmp_map) and x < len(tmp_map[0]) and tmp_map[y, x] != map[y, x]:
+                        tmp_map[y, x] = map[y, x]
+
+        # Free up robot right if no wall in org map
+        if self.robot_x + self.robot_radius <  len(tmp_map[0]) and map[self.robot_y, self.robot_x + self.robot_radius] != 100:
+            for y in range(self.robot_y - self.robot_radius, self.robot_y + 1 + self.robot_radius):
+                for x in range(self.robot_x, self.robot_x + self.robot_radius + 1):
+                    if y >= 0 and x >= 0 and y < len(tmp_map) and x < len(tmp_map[0]) and tmp_map[y, x] != map[y, x]:
+                        tmp_map[y, x] = map[y, x]
+
+        # Free up robot bottom if no wall in org map
+        if self.robot_y + self.robot_radius < len(tmp_map) and  map[self.robot_y + self.robot_radius, self.robot_x] != 100:
+            for y in range(self.robot_y - self.robot_radius, self.robot_y + 1):
+                for x in range(self.robot_x - self.robot_radius, self.robot_x + self.robot_radius + 1):
+                    if y >= 0 and x >= 0 and y < len(tmp_map) and x < len(tmp_map[0]) and tmp_map[y, x] != map[y, x]:
+                        tmp_map[y, x] = map[y, x]
+
+        # Free up robot left if no wall in org map
+        if self.robot_x - self.robot_radius >= 0 and map[self.robot_y, self.robot_x - self.robot_radius] != 100:
+            for y in range(self.robot_y - self.robot_radius, self.robot_y + 1 + self.robot_radius):
+                for x in range(self.robot_x - self.robot_radius, self.robot_x + 1):
+                    if y >= 0 and x >= 0 and y < len(tmp_map) and x < len(tmp_map[0]) and tmp_map[y, x] != map[y, x]:
+                        tmp_map[y, x] = map[y, x]
+
         return tmp_map
 
     def _scan_callback(self, scan):
