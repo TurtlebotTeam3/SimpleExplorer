@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import copy as cp
-
+from directionEnum import Direction
 
 class Wavefront:
 
@@ -125,19 +125,16 @@ class Wavefront:
         currentY = yStart
         lastX = xStart
         lastY = yStart
-        direction = 'v'
         waypoints = []
-        waypoints.append((xStart, yStart))
         allpoints = []
         first = True
         # 0 -> No / 1 -> Top / 2 -> Bottom / 3 -> Left / 4 -> Right / Top Left -> 5 / Top Right -> 6 / Bottom Right -> 7 / Bottom Left -> 8
-        lastValueDirecton = 0
+        lastDirection = Direction.Neutral
 
         run = True
         while run == True:
             nextLowestAdjeacent = self._get_next_lowest_adjeacent(
-                map, currentX, currentY, radius, lastValueDirecton)
-            lastValueDirecton = nextLowestAdjeacent[3]
+                map, currentX, currentY)
             if nextLowestAdjeacent[0] == 0 and nextLowestAdjeacent[1] == 0 and nextLowestAdjeacent[2] == 0:
                 return None, None, None
 
@@ -146,15 +143,13 @@ class Wavefront:
                 lastY = currentY
                 currentX = nextLowestAdjeacent[0]
                 currentY = nextLowestAdjeacent[1]
-
+                direction =nextLowestAdjeacent[3]
                 # currentValue = currentValue - 1
                 # map[currentY][currentX] = currentValue
 
-                direction_changed, direction = self._detect_direction_change(
-                    direction, currentX, currentY, lastX, lastY)
-                if direction_changed:
-                    if first:
-                        first = False
+                #direction_changed, direction = self._detect_direction_change(direction, currentX, currentY, lastX, lastY)
+                if direction != lastDirection:
+                    lastDirection = direction
                     waypoints.append((lastX, lastY))
                 allpoints.append((currentX, currentY))
 
@@ -185,10 +180,10 @@ class Wavefront:
         tempValue = 147456
 
         # check left top
-        #if(map[currentY - 1][currentX - 1] < tempValue) and map[currentY - 1][currentX - 1] != 1:
-        #    tempX = currentX - 1
-        #    tempY = currentY - 1
-        #    tempValue = map[currentY - 1][currentX - 1]
+        if(map[currentY - 1][currentX - 1] < tempValue) and map[currentY - 1][currentX - 1] != 1:
+            tempX = currentX - 1
+            tempY = currentY - 1
+            tempValue = map[currentY - 1][currentX - 1]
 
         # check top
         if(map[currentY - 1][currentX] < tempValue) and map[currentY - 1][currentX] != 1:
@@ -197,10 +192,10 @@ class Wavefront:
             tempValue = map[currentY - 1][currentX]
 
         # check top right
-        #if(map[currentY - 1][currentX + 1] < tempValue) and map[currentY - 1][currentX + 1] != 1:
-        #    tempX = currentX + 1
-        #    tempY = currentY - 1
-        #    tempValue = map[currentY - 1][currentX + 1]
+        if(map[currentY - 1][currentX + 1] < tempValue) and map[currentY - 1][currentX + 1] != 1:
+            tempX = currentX + 1
+            tempY = currentY - 1
+            tempValue = map[currentY - 1][currentX + 1]
 
         # check right
         if (map[currentY][currentX + 1] < tempValue) and map[currentY][currentX + 1] != 1:
@@ -209,10 +204,10 @@ class Wavefront:
             tempValue = map[currentY][currentX + 1]
 
         # check bottom right
-        #if (map[currentY + 1][currentX + 1] < tempValue) and map[currentY + 1][currentX + 1] != 1:
-        #    tempX = currentX + 1
-        #    tempY = currentY + 1
-        #    tempValue = map[currentY + 1][currentX + 1]
+        if (map[currentY + 1][currentX + 1] < tempValue) and map[currentY + 1][currentX + 1] != 1:
+            tempX = currentX + 1
+            tempY = currentY + 1
+            tempValue = map[currentY + 1][currentX + 1]
 
         # check bottom
         if (map[currentY + 1][currentX] < tempValue) and map[currentY + 1][currentX] != 1:
@@ -221,10 +216,10 @@ class Wavefront:
             tempValue = map[currentY + 1][currentX]
 
         # check bottom left
-        #if (map[currentY + 1][currentX - 1] < tempValue) and map[currentY + 1][currentX - 1] != 1:
-        #    tempX = currentX - 1
-        #    tempY = currentY + 1
-        #    tempValue = map[currentY + 1][currentX - 1]
+        if (map[currentY + 1][currentX - 1] < tempValue) and map[currentY + 1][currentX - 1] != 1:
+            tempX = currentX - 1
+            tempY = currentY + 1
+            tempValue = map[currentY + 1][currentX - 1]
 
         # check left
         if (map[currentY][currentX - 1] < tempValue) and map[currentY][currentX - 1] != 1:
@@ -233,124 +228,149 @@ class Wavefront:
             tempValue = map[currentY][currentX - 1]
 
         # check bottom left
-        #if (map[currentY - 1][currentX - 1] < tempValue) and map[currentY - 1][currentX - 1] != 1:
-        #    tempX = currentX - 1
-        #    tempY = currentY - 1
-        #    tempValue = map[currentY - 1][currentX - 1]
+        if (map[currentY - 1][currentX - 1] < tempValue) and map[currentY - 1][currentX - 1] != 1:
+            tempX = currentX - 1
+            tempY = currentY - 1
+            tempValue = map[currentY - 1][currentX - 1]
 
         highestAdjeacent = [tempX, tempY, tempValue]
 
         return highestAdjeacent
 
-    def _get_next_lowest_adjeacent(self, map, currentX, currentY, radius, lastValueDirecton):
+    def _get_next_lowest_adjeacent(self, map, currentX, currentY):
         """
         """
-        tempLastValueDirecton = lastValueDirecton
+        #tempLastValueDirecton = lastValueDirecton
+        currentValue = 0
 
-        tempTopLeftX = 0
-        tempTopLeftY = 0
-        tempTopLeftValue = 0
+        #tempTopLeftX = 0
+        #tempTopLeftY = 0
+        #tempTopLeftValue = 0
 
-        tempTopX = 0
-        tempTopY = 0
-        tempTopValue = 0
+        #tempTopX = 0
+        #tempTopY = 0
+        #tempTopValue = 0
 
-        tempTopRightX = 0
-        tempTopRightY = 0
-        tempTopRightValue = 0
+        #tempTopRightX = 0
+        #tempTopRightY = 0
+        #tempTopRightValue = 0
 
-        tempRightX = 0
-        tempRightY = 0
-        tempRightValue = 0
+        #tempRightX = 0
+        #tempRightY = 0
+        #tempRightValue = 0
 
-        tempBottomRightX = 0
-        tempBottomRightY = 0
-        tempBottomRightValue = 0
+        #tempBottomRightX = 0
+        #tempBottomRightY = 0
+        #tempBottomRightValue = 0
 
-        tempBottomX = 0
-        tempBottomY = 0
-        tempBottomValue = 0
+        #tempBottomX = 0
+        #tempBottomY = 0
+        #tempBottomValue = 0
 
-        tempBottomLeftX = 0
-        tempBottomLeftY = 0
-        tempBottomLeftValue = 0
+        #tempBottomLeftX = 0
+        #tempBottomLeftY = 0
+        #tempBottomLeftValue = 0
 
-        tempLeftX = 0
-        tempLeftY = 0
-        tempLeftValue = 0
+        #tempLeftX = 0
+        #tempLeftY = 0
+        #tempLeftValue = 0
+
+        nextX = 0
+        nextY = 0
+        nextValue = 0
+        # 0 -> No
+        # 1 -> Top
+        # 2 -> Bottom
+        # 3 -> Left
+        # 4 -> Right
+        # 5 -> Top Left
+        # 6 -> Top Right
+        # 7 -> Bottom Right
+        # 8 -> Bottom Left
+        direction = Direction.Neutral
 
         if map[currentY][currentX] == -2:
             highestAdjeacent = self._get_first_adjeacent(
                 map, currentX, currentY)
-            tempValue = highestAdjeacent[2] + 1
+            return [highestAdjeacent[0], highestAdjeacent[1], highestAdjeacent[2], Direction.Neutral]
         else:
-            tempValue = map[currentY][currentX]
+            nextValue = currentValue = map[currentY][currentX]
 
         # check top left
-        # if map[currentY - 1][currentX - 1] == tempValue - 1:
-        #    tempTopLeftX = currentX - 1
-        #    tempTopLeftY = currentY - 1
-        #    tempTopLeftValue = map[tempTopLeftY][tempTopLeftX]
+        if map[currentY - 1][currentX - 1] == currentValue - 2 and map[currentY - 1][currentX - 1] >=  self._value_goal:
+            nextX = currentX - 1
+            nextY = currentY - 1
+            nextValue = map[nextY][nextX]
+            direction = Direction.NorthWest
 
         # check top
-        if map[currentY - 1][currentX] == tempValue - 1:
-            tempTopX = currentX
-            tempTopY = currentY - 1
-            tempTopValue = map[tempTopY][tempTopX]
+        if map[currentY - 1][currentX] == currentValue - 1 and map[currentY - 1][currentX] >=  self._value_goal and map[currentY - 1][currentX] < nextValue:
+            nextX = currentX
+            nextY = currentY - 1
+            nextValue = map[nextY][nextX]
+            direction = Direction.North
 
         # check top right
-        #if map[currentY - 1][currentX + 1] == tempValue - 1:
-        #    tempTopRightX = currentX + 1
-        #    tempTopRightY = currentY - 1
-        #    tempTopRightValue = map[tempTopRightY][tempTopRightX]
+        if map[currentY - 1][currentX + 1] == currentValue - 2 and map[currentY - 1][currentX + 1] >=  self._value_goal and map[currentY - 1][currentX + 1] < nextValue:
+            nextX = currentX + 1
+            nextY = currentY - 1
+            nextValue = map[nextY][nextX]
+            direction = Direction.NorthEast
 
         # check right
-        if map[currentY][currentX + 1] == tempValue - 1:
-            tempRightX = currentX + 1
-            tempRightY = currentY
-            tempRightValue = map[tempRightY][tempRightX]
+        if map[currentY][currentX + 1] == currentValue - 1 and map[currentY][currentX + 1] >=  self._value_goal and map[currentY][currentX + 1] < nextValue:
+            nextX = currentX + 1
+            nextY = currentY
+            nextValue = map[nextY][nextX]
+            direction = Direction.East
 
         # check bottom right
-        #if map[currentY + 1][currentX + 1] == tempValue - 1:
-        #    tempBottomRightX = currentX + 1
-        #    tempBottomRightY = currentY + 1
-        #    tempBottomRightValue = map[tempBottomRightY][tempBottomRightX]
+        if map[currentY + 1][currentX + 1] == currentValue - 2 and map[currentY + 1][currentX + 1] >=  self._value_goal and map[currentY + 1][currentX + 1] < nextValue:
+            nextX = currentX + 1
+            nextY = currentY + 1
+            nextValue = map[nextY][nextX]
+            direction = Direction.SouthEast
 
         # check bottom
-        if map[currentY + 1][currentX] == tempValue - 1:
-            tempBottomX = currentX
-            tempBottomY = currentY + 1
-            tempBottomValue = map[tempBottomY][tempBottomX]
+        if map[currentY + 1][currentX] == currentValue - 1 and map[currentY + 1][currentX] >=  self._value_goal and map[currentY + 1][currentX] < nextValue:
+            nextX = currentX
+            nextY = currentY + 1
+            nextValue = map[nextY][nextX]
+            direction = Direction.South
 
         # check bottom left
-        #if map[currentY + 1][currentX - 1] == tempValue - 1:
-        #    tempBottomLeftX = currentX - 1
-        #    tempBottomLeftY = currentY + 1
-        #    tempBottomLeftValue = map[tempBottomLeftY][tempBottomLeftX]
+        if map[currentY + 1][currentX - 1] == currentValue - 2 and map[currentY + 1][currentX - 1] >=  self._value_goal and map[currentY + 1][currentX - 1] < nextValue:
+            nextX = currentX - 1
+            nextY = currentY + 1
+            nextValue = map[nextY][nextX]
+            direction = Direction.SouthWest
 
         # check left
-        if map[currentY][currentX - 1] == tempValue - 1:
-            tempLeftX = currentX - 1
-            tempLeftY = currentY
-            tempLeftValue = map[tempLeftY][tempLeftX]
+        if map[currentY][currentX - 1] == currentValue - 1 and map[currentY][currentX - 1] >=  self._value_goal and map[currentY][currentX - 1] < nextValue:
+            nextX = currentX - 1
+            nextY = currentY
+            nextValue = map[nextY][nextX]
+            direction = Direction.West
+
+        return [nextX, nextY, nextValue, direction]
 
         # 0 -> No / 1 -> Top / 2 -> Bottom / 3 -> Left / 4 -> Right / Top Left -> 5 / Top Right -> 6 / Bottom Right -> 7 / Bottom Left -> 8
 
         # moved top
-        if tempLastValueDirecton == 1 and tempTopValue != 0:
-            return [tempTopX, tempTopY, tempTopValue, 1]
+        #if tempLastValueDirecton == 1 and tempTopValue != 0:
+        #    return [tempTopX, tempTopY, tempTopValue, 1]
 
         # moved bottom
-        elif tempLastValueDirecton == 2 and tempBottomValue != 0:
-            return [tempBottomX, tempBottomY, tempBottomValue, 2]
+        #elif tempLastValueDirecton == 2 and tempBottomValue != 0:
+        #    return [tempBottomX, tempBottomY, tempBottomValue, 2]
 
         # moved left
-        elif tempLastValueDirecton == 3 and tempLeftValue != 0:
-            return [tempLeftX, tempLeftY, tempLeftValue, 3]
+        #elif tempLastValueDirecton == 3 and tempLeftValue != 0:
+        #    return [tempLeftX, tempLeftY, tempLeftValue, 3]
 
         # moved right
-        elif tempLastValueDirecton == 2 and tempRightValue != 0:
-            return [tempRightX, tempRightY, tempRightValue, 4]
+        #elif tempLastValueDirecton == 2 and tempRightValue != 0:
+        #    return [tempRightX, tempRightY, tempRightValue, 4]
 
         # moved top left
         #elif tempLastValueDirecton == 5 and tempTopLeftValue != 0:
@@ -371,29 +391,29 @@ class Wavefront:
         #elif tempTopLeftValue != 0:
         #    return [tempTopX, tempTopY, tempTopLeftValue, 5]
 
-        elif tempTopValue != 0:
-            return [tempTopX, tempTopY, tempTopValue, 1]
+        #elif tempTopValue != 0:
+        #    return [tempTopX, tempTopY, tempTopValue, 1]
 
         #elif tempTopRightValue != 0:
         #    return [tempTopX, tempTopY, tempTopRightValue, 7]
 
-        elif tempRightValue != 0:
-            return [tempRightX, tempRightY, tempRightValue, 4]
+        #elif tempRightValue != 0:
+        #    return [tempRightX, tempRightY, tempRightValue, 4]
 
         #elif tempBottomRightValue != 0:
         #    return [tempTopX, tempTopY, tempBottomRightValue, 8]
 
-        elif tempBottomValue != 0:
-            return [tempBottomX, tempBottomY, tempBottomValue, 2]
+        #elif tempBottomValue != 0:
+        #    return [tempBottomX, tempBottomY, tempBottomValue, 2]
 
         #elif tempBottomLeftValue != 0:
         #    return [tempTopX, tempTopY, tempBottomLeftValue, 9]
 
-        elif tempLeftValue != 0:
-            return [tempLeftX, tempLeftY, tempLeftValue, 3]
+        #elif tempLeftValue != 0:
+        #    return [tempLeftX, tempLeftY, tempLeftValue, 3]
 
-        else:
-            return [0, 0, 0, 0]
+        #else:
+        #    return [0, 0, 0, 0]
 
     def _move_waipoints_away_from_obstacles(self, map, waypoints, radius):
         for i in range(len(waypoints) - 1, -1, -1):
@@ -455,6 +475,16 @@ class Wavefront:
 
             waypoints[i] = (x1, y1)
             waypoints[i - 1] = (x2, y2)
+        return waypoints
+
+    def _filterDiagonalMovement(self, waypoints):
+        for i in range(0, len(waypoints) - 2):
+            (x1, y1) = waypoints[i]
+            (x3, y3) = waypoints[i + 2]
+
+            if abs(x3 - x1) == abs(y3 - y1) and abs(y3 - y1) <= 3:
+                waypoints.pop(i + 1)
+        
         return waypoints
 
     def _move_single_point(self, map, x, y, radius):
@@ -541,8 +571,10 @@ class Wavefront:
         if waypoints == None and allpoints == None:
             return None, None
         else:
-            waypoints = self._move_waipoints_away_from_obstacles(map, waypoints, 3)
+            # waypoints = self._filterDiagonalMovement(waypoints)
+            # waypoints = self._move_waipoints_away_from_obstacles(map, waypoints, 3)
             return waypoints, allpoints
+
 
     def _find_all_unknown(self, map, robot_radius):
         """
