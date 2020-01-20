@@ -96,9 +96,6 @@ class Explorer:
         np.savetxt("map_normal.csv", self.map , delimiter=",", fmt='%1.3f')
         np.savetxt("map_blowup.csv", map , delimiter=",", fmt='%1.3f')
 
-        robo_x = self.robot_x
-        robo_y = self.robot_y
-
         self.is_searching_unknown_space = True
         
         self.waypoints, allpoints = self.wavefront.find_unknown(map,self.robot_x, self.robot_y, self.robot_radius)
@@ -132,7 +129,6 @@ class Explorer:
                     # only blow up if not robot position
                     # if (self.robot_y < (row - self.blowUpCellNum) or self.robot_y > (row + self.blowUpCellNum)) and (self.robot_x < (col - self.blowUpCellNum) or self.robot_x > (col + self.blowUpCellNum)): 
                     tmp_map[row - self.blowUpCellNum : row + 1 + self.blowUpCellNum, col - self.blowUpCellNum : col + 1 + self.blowUpCellNum] = 100
-
 
         # Free up robot top if no wall in org map
         if self.robot_y - self.robot_radius >= 0 and  map[self.robot_y - self.robot_radius, self.robot_x] != 100:
@@ -191,8 +187,7 @@ class Explorer:
 
                 self.robot_x = int(math.floor((self.robot_x_pose - self.map_offset_x)/self.map_resolution))
                 self.robot_y = int(math.floor((self.robot_y_pose - self.map_offset_y)/self.map_resolution))
-
-
+  
     def _navigate(self):
         # get waypoint and start moving towards it
         # when success the process next
@@ -201,62 +196,17 @@ class Explorer:
         if(len(self.waypoints) > 0):
             print self.waypoints
             (x, y) = self.waypoints.pop(0)
-            # (x, y) = self.waypoints.pop(len(self.waypoints) - 1)
-            # self.waypoints = []
+
             print self.waypoints
-            # self.waypointsAvailable = True
-            
-            # -- move base --
-            #self._move_1(x, y)
 
             # -- move to goal --
-            self._move_2(x, y)
+            self._move(x, y)
 
         else:
             self.is_navigating = False
             self.waypointsAvailable = False
 
-    
-    # # # # # # # # # # # # # # # # # # # # 
-    #              Move Base
-    # # # # # # # # # # # # # # # # # # # #
-    def _move_1(self, x, y):
-        """
-        Moves the robot to a place defined by coordinates x and y.
-        """
-        print('Navigate to: ' + str(x) + ' | ' + str(y))
-        goal = MoveBaseGoal()
-        goal.target_pose.header.frame_id = "map"
-        goal.target_pose.header.stamp = rospy.Time.now()
-
-        # TODO: this seems not to be correct, targets are somewhere in the nowhere
-        # target_x = (x - self.map_width/2.0 - self.map_offset_x) * self.map_resolution
-        # target_y = (y - self.map_height/2.0 - self.map_offset_y) * self.map_resolution
-        target_x = (x * self.map_resolution) + self.map_offset_x
-        target_y = (y * self.map_resolution) + self.map_offset_y
-
-        goal.target_pose.pose.position.x = target_x
-        goal.target_pose.pose.position.y = target_y
-        goal.target_pose.pose.orientation.w = 1
-
-
-        self.move_base_client.send_goal(goal)
-        success = self.move_base_client.wait_for_result(rospy.Duration(25))
-        #When success then go to next waypoint otherwise stop navigating and check map
-        if success:
-            print('Reached: ' + str(x) + ' | ' + str(y))
-            self._navigate()
-        else:
-            print('Faild driving to: ' + str(x) + ' | ' + str(y))
-            self.move_base_client.cancel_goal()
-            self.is_navigating = False
-
-
-
-    # # # # # # # # # # # # # # # # # # # # 
-    #              Move to goal
-    # # # # # # # # # # # # # # # # # # # #
-    def _move_2(self, x, y):
+    def _move(self, x, y):
         """
         Moves the rob2t to a place defined by coordinates x and y.
         """
