@@ -262,7 +262,7 @@ class Wavefront:
 
         return [nextX, nextY, nextValue, direction]
 
-    def run(self, map, xGoal, yGoal, xStart, yStart, radius):
+    def find_path_to_goal(self, map, xGoal, yGoal, xStart, yStart, radius):
         """
         """
         map = cp.deepcopy(map)
