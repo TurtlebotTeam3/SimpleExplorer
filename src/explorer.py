@@ -11,7 +11,6 @@ from move_base_msgs.msg._MoveBaseGoal import MoveBaseGoal
 from geometry_msgs.msg import PointStamped
 from geometry_msgs.msg._Pose import Pose
 from std_msgs.msg._Bool import Bool
-from wavefront import Wavefront
 import actionlib
 from tf import TransformListener
 import copy
@@ -45,7 +44,6 @@ class Explorer:
         self.map_offset_x = 0
         self.map_offset_y = 0
         self.map =[[]]
-        self.wavefront = Wavefront()
         self.tf = TransformListener()
         self.waypointsAvailable = False
         self.mapComplete  = False
