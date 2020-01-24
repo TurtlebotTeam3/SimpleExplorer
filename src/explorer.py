@@ -13,9 +13,10 @@ from geometry_msgs.msg._Pose import Pose
 from std_msgs.msg._Bool import Bool
 from wavefront import Wavefront
 import actionlib
-from tf import TransformListener
+import tf
 import copy
 import math
+from directionEnum import Direction
 
 class Explorer:
 
@@ -33,38 +34,157 @@ class Explorer:
         self.blowUpCellNum = 3
         self.map_resolution = 0
         self.robot_x = 0
+        self.robot_x_old = 0
+        
         self.robot_x_pose = 0
         self.robot_y = 0
+        self.robot_y_old = 0
         self.robot_y_pose = 0
+
+        self.robot_yaw = 0
+        self.robot_yaw_old = 0
+
         self.map_height = 0
         self.map_width = 0
         self.map_offset_x = 0
         self.map_offset_y = 0
         self.map =[[]]
+        self.map_info = None
+
         self.wavefront = Wavefront()
-        self.tf = TransformListener()
+
         self.waypointsAvailable = False
+
         self.mapComplete  = False
         self.mapCompletePrint = False
+        self.map_camera_seen = None
+        self.map_camera_seen_seq = 0
+        self.map_camera_seen_initialised = False
+
         self.pose = Pose()
 
-        self.move_base_client = actionlib.SimpleActionClient(
-            'move_base', MoveBaseAction)
-        self.pose_subscriber = rospy.Subscriber('/simple_odom_pose',
-												Pose, self._update_pose)
-        self.mapSub = rospy.Subscriber(
-            '/map', OccupancyGrid, self._map_callback)
+        self.move_base_client = actionlib.SimpleActionClient('/move_base', MoveBaseAction)
+        self.pose_subscriber = rospy.Subscriber('/simple_odom_pose', Pose, self._update_pose)
+        self.mapSub = rospy.Subscriber('/map', OccupancyGrid, self._map_callback)
         self.scanSub = rospy.Subscriber('/scan', LaserScan, self._scan_callback)
-        self.pub_point = rospy.Publisher('clicked_point',PointStamped, queue_size=1)
+        self.pub_point = rospy.Publisher('/clicked_point',PointStamped, queue_size=1)
 
-        self.pub_goal = rospy.Publisher('move_to_goal/goal', Pose, queue_size=1)
+        self.pub_goal = rospy.Publisher('/move_to_goal/goal', Pose, queue_size=1)
         self.sub_goal_reached = rospy.Subscriber('/move_to_goal/reached', Bool, self._goal_reached_callback)
+
+        self.pub_seen_map = rospy.Publisher('/camera_seen_map', OccupancyGrid, queue_size=1)
 
         self.received_map = False
 
+        self.direction = Direction.Neutral
+
+        self._setup_camera_seen_masks()
+
         self.rate = rospy.Rate(20)
 
-        #rospy.spin()
+
+    def _setup_camera_seen_masks(self):
+        self.mask_camera_seen_north = np.array([[1, 1, 1, 1, 1, 1, 1, 1, 1],
+                                                [0, 1, 1, 1, 1, 1, 1, 1, 0],
+                                                [0, 0, 1, 1, 1, 1, 1, 0, 0],
+                                                [0, 0, 0, 1, 1, 1, 0, 0, 0],
+                                                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                                [0, 0, 0, 0, 0, 0, 0, 0, 0]])
+        self.mask_camera_seen_north_offset_x = -4
+        self.mask_camera_seen_north_offset_y = -7
+
+        self.mask_camera_seen_north_east = np.array([[0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+                                                     [0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0],
+                                                     [0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0],
+                                                     [0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0],
+                                                     [0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0],
+                                                     [0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0],
+                                                     [0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1],
+                                                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]])
+        self.mask_camera_seen_north_east_offset_x = 4
+        self.mask_camera_seen_north_east_offset_y = -10
+
+        self.mask_camera_seen_east = np.array([ [0, 0, 0, 0, 0, 0, 0, 1],
+                                                [0, 0, 0, 0, 0, 0, 1, 1],
+                                                [0, 0, 0, 0, 0, 1, 1, 1],
+                                                [0, 0, 0, 0, 1, 1, 1, 1],
+                                                [0, 0, 0, 0, 1, 1, 1, 1],
+                                                [0, 0, 0, 0, 1, 1, 1, 1],
+                                                [0, 0, 0, 0, 0, 1, 1, 1],
+                                                [0, 0, 0, 0, 0, 0, 1, 1],
+                                                [0, 0, 0, 0, 0, 0, 0, 1]])
+        self.mask_camera_seen_east_offset_x = 0
+        self.mask_camera_seen_east_offset_y = -4
+
+        self.mask_camera_seen_south_east = np.array([[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                                     [0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1],
+                                                     [0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0],
+                                                     [0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0],
+                                                     [0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0],
+                                                     [0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0],
+                                                     [0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0],
+                                                     [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0]])
+        self.mask_camera_seen_south_east_offset_x = 0
+        self.mask_camera_seen_south_east_offset_y = 0
+
+        self.mask_camera_seen_south = np.array([[0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                                [0, 0, 0, 1, 1, 1, 0, 0, 0],
+                                                [0, 0, 1, 1, 1, 1, 1, 0, 0],
+                                                [0, 1, 1, 1, 1, 1, 1, 1, 0],
+                                                [1, 1, 1, 1, 1, 1, 1, 1, 1]])
+        self.mask_camera_seen_south_offset_x = -4
+        self.mask_camera_seen_south_offset_y = 0
+
+        self.mask_camera_seen_south_west = np.array([[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                                     [1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0],
+                                                     [0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0],
+                                                     [0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0],
+                                                     [0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0],
+                                                     [0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0],
+                                                     [0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
+                                                     [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0]])
+        self.mask_camera_seen_south_west_offset_x = -10
+        self.mask_camera_seen_south_west_offset_y = 0
+
+        self.mask_camera_seen_west = np.array([ [1, 0, 0, 0, 0, 0, 0, 0],
+                                                [1, 1, 0, 0, 0, 0, 0, 0],
+                                                [1, 1, 1, 0, 0, 0, 0, 0],
+                                                [1, 1, 1, 1, 0, 0, 0, 0],
+                                                [1, 1, 1, 1, 0, 0, 0, 0],
+                                                [1, 1, 1, 1, 0, 0, 0, 0],
+                                                [1, 1, 1, 0, 0, 0, 0, 0],
+                                                [1, 1, 0, 0, 0, 0, 0, 0],
+                                                [1, 0, 0, 0, 0, 0, 0, 0]])
+        self.mask_camera_seen_west_offset_x = -7
+        self.mask_camera_seen_west_offset_y = -4
+
+        self.mask_camera_seen_north_west = np.array([[0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
+                                                     [0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
+                                                     [0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0],
+                                                     [0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0],
+                                                     [0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0],
+                                                     [0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0],
+                                                     [1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0],
+                                                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]])
+        self.mask_camera_seen_north_west_offset_x = -10
+        self.mask_camera_seen_north_west_offset_y = -10
 
     def _map_callback(self, data):
         self.map_resolution = data.info.resolution
@@ -72,8 +192,13 @@ class Explorer:
         self.map_width = data.info.width
         self.map_offset_x = data.info.origin.position.x
         self.map_offset_y = data.info.origin.position.y
+        self.map_info = data.info
         self.map = np.reshape(data.data, (data.info.height, data.info.width))
         self.received_map = True
+
+        if not self.map_camera_seen_initialised:
+            self.map_camera_seen_initialised = True
+            self.map_camera_seen = np.full((self.map_height, self.map_width), -1)
     
     def run(self):
         while not rospy.is_shutdown():
@@ -165,29 +290,145 @@ class Explorer:
 
     def _update_pose(self, data):
         if self.map_resolution > 0:
+            self.pose.position.x = data.position.x
+            self.pose.position.y = data.position.y
+            self.pose.position.z = data.position.z
+            self.pose.orientation.x = data.orientation.x 
+            self.pose.orientation.y = data.orientation.y 
+            self.pose.orientation.z = data.orientation.z
+            self.pose.orientation.w = data.orientation.w 
+
+            self.robot_y_pose = self.pose.position.y
+            self.robot_x_pose = self.pose.position.x
+
+            self.robot_x_old = self.robot_x
+            self.robot_y_old = self.robot_y
+            self.robot_yaw_old = self.robot_yaw
+
+            self.robot_x = int(math.floor((self.robot_x_pose - self.map_offset_x)/self.map_resolution))
+            self.robot_y = int(math.floor((self.robot_y_pose - self.map_offset_y)/self.map_resolution))
+            self.robot_yaw = self._robot_angle()
+            
+            self.robot_pose_available = True
+
             try:
-                self.pose.position.x = data.position.x
-                self.pose.position.y = data.position.y
-                self.pose.position.z = data.position.z
-                self.pose.orientation.x = data.orientation.x 
-                self.pose.orientation.y = data.orientation.y 
-                self.pose.orientation.z = data.orientation.z
-                self.pose.orientation.w = data.orientation.w 
-
-                self.robot_y_pose = self.pose.position.y
-                self.robot_x_pose = self.pose.position.x
-
-                self.robot_x = int(math.floor((self.robot_x_pose - self.map_offset_x)/self.map_resolution))
-                self.robot_y = int(math.floor((self.robot_y_pose - self.map_offset_y)/self.map_resolution))
-                self.robot_pose_available = True
+                if self.robot_x != self.robot_x_old or self.robot_y != self.robot_y_old or abs(self.robot_yaw - self.robot_yaw_old) > 0.1:
+                    self._update_map_camera_seen(self.robot_x, self.robot_y, self.robot_yaw)
             except:
-                print('transform not ready')
-                self.robot_y_pose = data.position.y
-                self.robot_x_pose = data.position.x
+                print('update map camera seen failed')
+    
+    def _update_map_camera_seen(self, x, y, yaw):
+        """
+        Updates the map that tracks the seen areas from the view of the camera
+        """
+        #print('Angle: ' + str(yaw))
+        yaw = (yaw + math.pi/2.0 + 2*math.pi) % (2*math.pi)
+        #print('Angle 2pi: ' + str(yaw))
+        
+        # North
+        if (yaw >= (15.0/16.0 * 2.0 * math.pi) and yaw < (2 * math.pi)) or (yaw >= 0 and yaw < (1.0/16.0 * 2.0 * math.pi)):
+            self._map_camera_set_seen(x, y, self.mask_camera_seen_north, self.mask_camera_seen_north_offset_x, self.mask_camera_seen_north_offset_y)
 
-                self.robot_x = int(math.floor((self.robot_x_pose - self.map_offset_x)/self.map_resolution))
-                self.robot_y = int(math.floor((self.robot_y_pose - self.map_offset_y)/self.map_resolution))
-  
+        # North East
+        if yaw >= (1.0/16.0 * 2.0 * math.pi) and yaw < (3.0/16.0 * 2.0 * math.pi):
+            self._map_camera_set_seen(x, y, self.mask_camera_seen_north_east, self.mask_camera_seen_north_east_offset_x, self.mask_camera_seen_north_east_offset_y)
+
+         # East
+        if yaw >= (3.0/16.0 * 2.0 * math.pi) and yaw < (5.0/16.0 * 2.0 * math.pi):
+            self._map_camera_set_seen(x, y, self.mask_camera_seen_east, self.mask_camera_seen_east_offset_x, self.mask_camera_seen_east_offset_y)
+
+        # South East
+        if yaw >= (5.0/16.0 * 2.0 * math.pi) and yaw < (7.0/16.0 * 2.0 * math.pi):
+            self._map_camera_set_seen(x, y, self.mask_camera_seen_south_east, self.mask_camera_seen_south_east_offset_x, self.mask_camera_seen_south_east_offset_y)
+
+        # South
+        if yaw >= (7.0/16.0 * 2.0 * math.pi) and yaw < (9.0/16.0 * 2.0 * math.pi):
+            self._map_camera_set_seen(x, y, self.mask_camera_seen_south, self.mask_camera_seen_south_offset_x, self.mask_camera_seen_south_offset_y)
+
+        # South West
+        if yaw >= (9.0/16.0 * 2.0 * math.pi) and yaw < (11.0/16.0 * 2.0 * math.pi):
+            self._map_camera_set_seen(x, y, self.mask_camera_seen_south_west, self.mask_camera_seen_south_west_offset_x, self.mask_camera_seen_south_west_offset_y)
+
+        # West
+        if yaw >= (11.0/16.0 * 2.0 * math.pi) and yaw < (13.0/16.0 * 2.0 * math.pi):
+            self._map_camera_set_seen(x, y, self.mask_camera_seen_west, self.mask_camera_seen_west_offset_x, self.mask_camera_seen_west_offset_y)
+
+        # North West
+        if yaw >= (13.0/16.0 * 2.0 * math.pi) and yaw < (15.0/16.0 * 2.0 * math.pi):
+            self._map_camera_set_seen(x, y, self.mask_camera_seen_north_west, self.mask_camera_seen_north_west_offset_x, self.mask_camera_seen_north_west_offset_y)
+
+        self.map_camera_seen_seq = self.map_camera_seen_seq + 1
+        
+        # create occupany grid to publish it
+        oG = OccupancyGrid()
+        # header
+        oG.header.seq = self.map_camera_seen_seq
+        oG.header.frame_id = "map"
+        oG.header.stamp = rospy.Time.now()
+        # set the info like it is in the original map
+        oG.info = self.map_info
+        # set the map reshaped as array
+        oG.data = np.reshape(self.map_camera_seen, self.map_height * self.map_width)
+
+        self.pub_seen_map.publish(oG)
+
+    def _map_camera_set_seen(self, x, y, mask, offset_x, offset_y, positiv_direction = True):
+        """
+        This method sets the matrix of the map which represents the seen area by camera
+        """
+        y_mask = 0
+        x_mask = 0
+
+        y_start = 0
+        y_end = 0
+        y_increment = 1
+        x_start = 0
+        x_start = 0
+        x_increment = 1
+
+        if positiv_direction:
+            y_start = y + offset_y
+            y_end = (y + offset_y + len(mask))
+            y_increment = 1
+
+            x_start = x + offset_x
+            x_end = (x + offset_x + len(mask[0]))
+            x_increment = 1
+        else:
+            y_end = y + offset_y
+            y_start = (y + offset_y + len(mask))
+            y_increment = -1
+
+            x_end = x + offset_x
+            x_start = (x + offset_x + len(mask[0]))
+            x_increment = -1
+
+        # rows
+        for y1 in range(y_start, y_end, y_increment):
+            x_mask = 0
+            # cols
+            for x1 in range(x_start, x_end, x_increment):
+                # check that not outside of map
+                if y1 >= 0 and x1 >= 0 and y1 < len(self.map_camera_seen) and x1 < len(self.map_camera_seen[0]):
+                    # set field in camera map to 0 if not wall
+                    if self.map[y1][x1] != 100 and self.map[y1][x1] != -1:
+                        # if the mask has a 1 than it is the field of view
+                        if mask[y_mask][x_mask] == 1:
+                            self.map_camera_seen[y1][x1] = 10
+                    else:
+                        # exit for loop because can not view behind wall
+                        break
+                x_mask = x_mask + 1
+
+            y_mask = y_mask + 1
+
+
+    def _robot_angle(self):
+        orientation_q = self.pose.orientation
+        orientation_list = [orientation_q.x, orientation_q.y, orientation_q.z, orientation_q.w]
+        (roll, pitch, yaw) = tf.transformations.euler_from_quaternion(orientation_list)
+        return yaw
+
     def _navigate(self):
         # get waypoint and start moving towards it
         # when success the process next
