@@ -11,12 +11,15 @@ from move_base_msgs.msg._MoveBaseGoal import MoveBaseGoal
 from geometry_msgs.msg import PointStamped
 from geometry_msgs.msg._Pose import Pose
 from std_msgs.msg._Bool import Bool
-from wavefront import Wavefront
 import actionlib
 import tf
 import copy
 import math
 from directionEnum import Direction
+from path_planing.msg import PathPoint
+from path_planing.msg import FullPath
+from path_planing.srv import FindUnknown
+
 
 class Explorer:
 
@@ -30,6 +33,7 @@ class Explorer:
         self.map_updated = False
         self.scan = []
         self.waypoints = []
+        self.last_waypoints = []
         self.robot_radius = 1
         self.blowUpCellNum = 3
         self.map_resolution = 0
@@ -63,8 +67,8 @@ class Explorer:
 
         self.pose = Pose()
 
-        self.move_base_client = actionlib.SimpleActionClient('/move_base', MoveBaseAction)
-        self.pose_subscriber = rospy.Subscriber('/simple_odom_pose', Pose, self._update_pose)
+        self.move_base_client = actionlib.SimpleActionClient('move_base', MoveBaseAction)
+        self.pose_subscriber = rospy.Subscriber('/simple_odom_pose',Pose, self._update_pose)
         self.mapSub = rospy.Subscriber('/map', OccupancyGrid, self._map_callback)
         self.scanSub = rospy.Subscriber('/scan', LaserScan, self._scan_callback)
         self.pub_point = rospy.Publisher('/clicked_point',PointStamped, queue_size=1)
@@ -73,6 +77,9 @@ class Explorer:
         self.sub_goal_reached = rospy.Subscriber('/move_to_goal/reached', Bool, self._goal_reached_callback)
 
         self.pub_seen_map = rospy.Publisher('/camera_seen_map', OccupancyGrid, queue_size=1)
+        rospy.wait_for_service('find_unkown_service')
+
+        self.srv = rospy.ServiceProxy('find_unkown_service', FindUnknown)
 
         self.received_map = False
 
@@ -216,74 +223,33 @@ class Explorer:
 
     def _calculate(self):
         print('Calculating freespace')
-        #blow up walls
-        map = self._blow_up_wall(self.map)
-        np.savetxt("map_normal.csv", self.map , delimiter=",", fmt='%1.3f')
-        np.savetxt("map_blowup.csv", map , delimiter=",", fmt='%1.3f')
 
         self.is_searching_unknown_space = True
-        
-        self.waypoints, allpoints = self.wavefront.find_unknown(map,self.robot_x, self.robot_y, self.robot_radius)
-        if self.waypoints == None and allpoints == None:
+
+        service_response = self.srv(self.blowUpCellNum, self.robot_x, self.robot_y, self.robot_radius)
+        self.waypoints = service_response.waypoints.fullpath
+        allpoints = service_response.allPoints.fullpath
+
+        if self.waypoints == [] and allpoints == []:
             self.mapComplete = True
             self.move_base_client.cancel_goal()
         else: 
+            self.last_waypoints = self.waypoints
             # clear clicked points
-            for i in range(100):            
-                self._publish_point(0, 0)
-                self.rate.sleep()
+            #for _ in range(100):            
+            #    self._publish_point(0, 0)
+            #    self.rate.sleep()
 
             #for (x, y) in allpoints:
             #    self._publish_point(x, y)
             #    self.rate.sleep()
 
-            for (x, y) in self.waypoints:
-                self._publish_point(x, y)
+            for point in self.waypoints:
+                self._publish_point(point.path_x, point.path_y)
                 self.rate.sleep()
             
             self.waypointsAvailable = True
             self.is_searching_unknown_space = False
-
-    def _blow_up_wall(self, map):
-        #blow up walls
-        tmp_map = copy.deepcopy(map)
-        for row in range(0, len(tmp_map)):
-            for col in range(0 , len(tmp_map[0])):
-                # check outside boundaries and if it is a wall
-                if map[row,col] == 100 and row >= self.blowUpCellNum and col >= self.blowUpCellNum and row <= len(tmp_map) - self.blowUpCellNum and col <= len(tmp_map[0]) - self.blowUpCellNum:
-                    # only blow up if not robot position
-                    # if (self.robot_y < (row - self.blowUpCellNum) or self.robot_y > (row + self.blowUpCellNum)) and (self.robot_x < (col - self.blowUpCellNum) or self.robot_x > (col + self.blowUpCellNum)): 
-                    tmp_map[row - self.blowUpCellNum : row + 1 + self.blowUpCellNum, col - self.blowUpCellNum : col + 1 + self.blowUpCellNum] = 100
-
-        # Free up robot top if no wall in org map
-        if self.robot_y - self.robot_radius >= 0 and  map[self.robot_y - self.robot_radius, self.robot_x] != 100:
-            for y in range(self.robot_y - self.robot_radius, self.robot_y + 1):
-                for x in range(self.robot_x - self.robot_radius, self.robot_x + self.robot_radius + 1):
-                    if y >= 0 and x >= 0 and y < len(tmp_map) and x < len(tmp_map[0]) and tmp_map[y, x] != map[y, x]:
-                        tmp_map[y, x] = map[y, x]
-
-        # Free up robot right if no wall in org map
-        if self.robot_x + self.robot_radius <  len(tmp_map[0]) and map[self.robot_y, self.robot_x + self.robot_radius] != 100:
-            for y in range(self.robot_y - self.robot_radius, self.robot_y + 1 + self.robot_radius):
-                for x in range(self.robot_x, self.robot_x + self.robot_radius + 1):
-                    if y >= 0 and x >= 0 and y < len(tmp_map) and x < len(tmp_map[0]) and tmp_map[y, x] != map[y, x]:
-                        tmp_map[y, x] = map[y, x]
-
-        # Free up robot bottom if no wall in org map
-        if self.robot_y + self.robot_radius < len(tmp_map) and  map[self.robot_y + self.robot_radius, self.robot_x] != 100:
-            for y in range(self.robot_y - self.robot_radius, self.robot_y + 1):
-                for x in range(self.robot_x - self.robot_radius, self.robot_x + self.robot_radius + 1):
-                    if y >= 0 and x >= 0 and y < len(tmp_map) and x < len(tmp_map[0]) and tmp_map[y, x] != map[y, x]:
-                        tmp_map[y, x] = map[y, x]
-
-        # Free up robot left if no wall in org map
-        if self.robot_x - self.robot_radius >= 0 and map[self.robot_y, self.robot_x - self.robot_radius] != 100:
-            for y in range(self.robot_y - self.robot_radius, self.robot_y + 1 + self.robot_radius):
-                for x in range(self.robot_x - self.robot_radius, self.robot_x + 1):
-                    if y >= 0 and x >= 0 and y < len(tmp_map) and x < len(tmp_map[0]) and tmp_map[y, x] != map[y, x]:
-                        tmp_map[y, x] = map[y, x]
-
-        return tmp_map
 
     def _scan_callback(self, scan):
         pass
@@ -436,7 +402,9 @@ class Explorer:
 
         if(len(self.waypoints) > 0):
             print self.waypoints
-            (x, y) = self.waypoints.pop(0)
+            point = self.waypoints.pop(0)
+            x = point.path_x
+            y = point.path_y
 
             print self.waypoints
 
