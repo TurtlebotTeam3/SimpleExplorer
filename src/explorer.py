@@ -107,9 +107,9 @@ class Explorer:
         else: 
             self.last_waypoints = self.waypoints
             # clear clicked points
-            #for _ in range(100):            
-            #    self._publish_point(0, 0)
-            #    self.rate.sleep()
+            for _ in range(100):            
+                self._publish_point(0, 0)
+                self.rate.sleep()
 
             #for (x, y) in allpoints:
             #    self._publish_point(x, y)
