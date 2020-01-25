@@ -18,7 +18,7 @@ import math
 from directionEnum import Direction
 from path_planing.msg import PathPoint
 from path_planing.msg import FullPath
-from path_planing.srv import FindUnknown
+from path_planing.srv import FindUnknown, FindUnseen
 
 
 class Explorer:
@@ -59,15 +59,15 @@ class Explorer:
 
         self.waypointsAvailable = False
 
-        self.mapComplete  = False
-        self.mapCompletePrint = False
-        self.map_camera_seen = None
+        self.map_complete  = False
+        self.map_complete_print = False
+        self.map_camera = None
+        self.map_camera_complete = False
         self.map_camera_seen_seq = 0
         self.map_camera_seen_initialised = False
 
         self.pose = Pose()
 
-        self.move_base_client = actionlib.SimpleActionClient('move_base', MoveBaseAction)
         self.pose_subscriber = rospy.Subscriber('/simple_odom_pose',Pose, self._update_pose)
         self.mapSub = rospy.Subscriber('/map', OccupancyGrid, self._map_callback)
         self.scanSub = rospy.Subscriber('/scan', LaserScan, self._scan_callback)
@@ -79,7 +79,8 @@ class Explorer:
         self.pub_seen_map = rospy.Publisher('/camera_seen_map', OccupancyGrid, queue_size=1)
         rospy.wait_for_service('find_unkown_service')
 
-        self.srv = rospy.ServiceProxy('find_unkown_service', FindUnknown)
+        self.find_unknown_service = rospy.ServiceProxy('find_unkown_service', FindUnknown)
+        self.find_unseen_service = rospy.ServiceProxy('find_unseen_service', FindUnseen)
 
         self.received_map = False
 
@@ -205,11 +206,11 @@ class Explorer:
 
         if not self.map_camera_seen_initialised:
             self.map_camera_seen_initialised = True
-            self.map_camera_seen = np.full((self.map_height, self.map_width), -1)
+            self.map_camera = np.full((self.map_height, self.map_width), -1)
     
     def run(self):
         while not rospy.is_shutdown():
-            if self.mapComplete == False:
+            if self.map_complete == False or self.map_camera_complete == False:
                 if self.robot_pose_available and not self.is_navigating and not self.is_searching_unknown_space and self.received_map:    
                     if(self.waypointsAvailable == True):
                         self._navigate()
@@ -217,22 +218,32 @@ class Explorer:
                         self._calculate()
                 self.rate.sleep()
             else:
-                if not self.mapCompletePrint:
-                    self.mapCompletePrint = True
-                    print "---> MAP COMPLETE <---"
+                if not self.map_complete_print:
+                    self.map_complete_print = True
+                    print "---> MAPPING COMPLETE <---"
 
     def _calculate(self):
         print('Calculating freespace')
 
         self.is_searching_unknown_space = True
 
-        service_response = self.srv(self.blowUpCellNum, self.robot_x, self.robot_y, self.robot_radius)
+        service_response = None
+        if not self.map_complete:
+            # search for undiscoverd space by lidar
+            service_response = self.find_unknown_service(self.blowUpCellNum, self.robot_x, self.robot_y, self.robot_radius)
+        else:
+            # search for unseen space by the camer
+            service_response = self.find_unseen_service(self.blowUpCellNum, self.robot_x, self.robot_y, self.robot_radius)
+        
         self.waypoints = service_response.waypoints.fullpath
         allpoints = service_response.allPoints.fullpath
 
         if self.waypoints == [] and allpoints == []:
-            self.mapComplete = True
-            self.move_base_client.cancel_goal()
+            # check which map is currently being completed
+            if not self.map_complete:
+                self.map_complete = True
+            else:
+                self.map_camera_complete = True
         else: 
             self.last_waypoints = self.waypoints
             # clear clicked points
@@ -334,7 +345,7 @@ class Explorer:
         # set the info like it is in the original map
         oG.info = self.map_info
         # set the map reshaped as array
-        oG.data = np.reshape(self.map_camera_seen, self.map_height * self.map_width)
+        oG.data = np.reshape(self.map_camera, self.map_height * self.map_width)
 
         self.pub_seen_map.publish(oG)
 
@@ -375,12 +386,12 @@ class Explorer:
             # cols
             for x1 in range(x_start, x_end, x_increment):
                 # check that not outside of map
-                if y1 >= 0 and x1 >= 0 and y1 < len(self.map_camera_seen) and x1 < len(self.map_camera_seen[0]):
+                if y1 >= 0 and x1 >= 0 and y1 < len(self.map_camera) and x1 < len(self.map_camera[0]):
                     # set field in camera map to 0 if not wall
                     if self.map[y1][x1] != 100 and self.map[y1][x1] != -1:
                         # if the mask has a 1 than it is the field of view
                         if mask[y_mask][x_mask] == 1:
-                            self.map_camera_seen[y1][x1] = 10
+                            self.map_camera[y1][x1] = 10
                     else:
                         # exit for loop because can not view behind wall
                         break
