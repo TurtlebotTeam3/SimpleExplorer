@@ -15,7 +15,6 @@ import actionlib
 import tf
 import copy
 import math
-from directionEnum import Direction
 from path_planing.msg import PathPoint
 from path_planing.msg import FullPath
 from path_planing.srv import FindUnknown, FindUnseen
@@ -84,8 +83,6 @@ class Explorer:
         self.find_unseen_service = rospy.ServiceProxy('find_unseen_service', FindUnseen)
 
         self.received_map = False
-
-        self.direction = Direction.Neutral
 
         self._setup_camera_seen_masks()
 
@@ -235,9 +232,9 @@ class Explorer:
         else: 
             self.last_waypoints = self.waypoints
             # clear clicked points
-            #for _ in range(100):            
-            #    self._publish_point(0, 0)
-            #    self.rate.sleep()
+            for _ in range(100):            
+                self._publish_point(0, 0)
+                self.rate.sleep()
 
             #for (x, y) in allpoints:
             #    self._publish_point(x, y)
