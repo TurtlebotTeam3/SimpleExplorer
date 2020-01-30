@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import rospy
 import numpy as np
+import time
 from std_msgs.msg import String
 from nav_msgs.msg._OccupancyGrid import OccupancyGrid
 from move_base_msgs.msg._MoveBaseActionGoal import MoveBaseActionGoal
@@ -189,6 +190,7 @@ class Explorer:
 
     
     def run(self):
+        start = time.time()
         while not rospy.is_shutdown():
             if self.map_complete == False or self.map_camera_complete == False:
                 if not self.map_complete_print and self.map_complete:
@@ -203,8 +205,16 @@ class Explorer:
                 self.rate.sleep()
             else:
                 if not self.all_maps_complete_printed:
+                    end = time.time()
                     self.all_maps_complete_printed = True
                     print('--> All complete <--')
+                    print('--- Duration: ' + str(end-start) + 'sec ---')
+
+        end = time.time()
+        self.all_maps_complete_printed = True
+        print('--> All complete <--')
+        print('--- Duration: ' + str(end-start) + 'sec ---')
+
 
     def _calculate(self):
         print('Calculating freespace')
