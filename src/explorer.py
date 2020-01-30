@@ -9,7 +9,6 @@ from move_base_msgs.msg._MoveBaseAction import MoveBaseAction
 from nav_msgs.msg._Odometry import Odometry
 from sensor_msgs.msg._LaserScan import LaserScan
 from move_base_msgs.msg._MoveBaseGoal import MoveBaseGoal
-from geometry_msgs.msg import PointStamped
 from geometry_msgs.msg._Pose import Pose
 from std_msgs.msg._Bool import Bool
 import actionlib
@@ -19,6 +18,8 @@ import math
 from path_planing.msg import PathPoint
 from path_planing.msg import FullPath
 from path_planing.srv import FindUnknown, FindUnseen
+from visualization_msgs.msg import Marker
+from visualization_msgs.msg import MarkerArray
 
 
 class Explorer:
@@ -33,7 +34,6 @@ class Explorer:
         self.map_updated = False
         self.scan = []
         self.waypoints = []
-        self.last_waypoints = []
         self.robot_radius = 1
         self.blowUpCellNum = 3
         self.map_resolution = 0
@@ -68,9 +68,9 @@ class Explorer:
 
         self.pose = Pose()
 
-        self.pub_point = rospy.Publisher('/clicked_point',PointStamped, queue_size=1)
         self.pub_goal = rospy.Publisher('/move_to_goal/goal', Pose, queue_size=1)
         self.pub_seen_map = rospy.Publisher('/camera_seen_map', OccupancyGrid, queue_size=1)
+        self.marker_waypoint_publisher = rospy.Publisher('waypoint_marker_array', MarkerArray, queue_size=1)
 
         self.pose_subscriber = rospy.Subscriber('/simple_odom_pose',Pose, self._update_pose)
         self.mapSub = rospy.Subscriber('/map', OccupancyGrid, self._map_callback)
@@ -240,19 +240,7 @@ class Explorer:
             else:
                 self.map_camera_complete = True
         else: 
-            self.last_waypoints = self.waypoints
-            # clear clicked points
-            for _ in range(100):            
-                self._publish_point(0, 0)
-                self.rate.sleep()
-
-            #for (x, y) in allpoints:
-            #    self._publish_point(x, y)
-            #    self.rate.sleep()
-
-            for point in self.waypoints:
-                self._publish_point(point.path_x, point.path_y)
-                self.rate.sleep()
+            self._publish_list(self.waypoints)
             
             self.waypointsAvailable = True
         
@@ -441,18 +429,6 @@ class Explorer:
 
         self.pub_goal.publish(goal)
 
-    def _publish_point(self, x, y):
-        pt_stamped = PointStamped()
-
-        pt_stamped.header.frame_id = "map"
-        pt_stamped.header.stamp = rospy.Time.now()
-
-        pt_stamped.point.x = (x * self.map_resolution) + self.map_offset_x
-        pt_stamped.point.y = (y * self.map_resolution) + self.map_offset_y
-        pt_stamped.point.z = 0
-
-        self.pub_point.publish(pt_stamped)
-
     def _goal_reached_callback(self, reached):
         print('Reached: ' + str(reached))
         if reached:
@@ -460,6 +436,38 @@ class Explorer:
         else:
             self.waypoints = []
             self.is_navigating = False
+
+    def _publish_list(self, list):
+        markerArray = MarkerArray()
+
+        for point in list:
+            marker = Marker()
+            marker.header.frame_id = "/map"
+            marker.type = marker.SPHERE
+            marker.action = marker.ADD
+            marker.scale.x = 0.075
+            marker.scale.y = 0.075
+            marker.scale.z = 0.075
+            marker.color.r = 1.0
+            marker.color.g = 0.0
+            marker.color.b = 0.0
+            marker.color.a = 1.0
+            marker.pose.orientation.w = 1.0
+            marker.pose.position.x = (point.path_x * self.map_resolution) + self.map_offset_x
+            marker.pose.position.y = (point.path_y * self.map_resolution) + self.map_offset_y 
+            marker.pose.position.z = 1
+
+            markerArray.markers.append(marker)
+            print "newmarker"
+
+        id = 0
+        for m in markerArray.markers:
+            m.id = id
+            id += 1
+
+        self.marker_waypoint_publisher.publish(markerArray)
+        print "pub markser"
+        rospy.sleep(0.01)
 
 if __name__ == '__main__':
     try:
