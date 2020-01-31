@@ -20,6 +20,8 @@ from path_planing.msg import FullPath
 from path_planing.srv import FindUnknown, FindUnseen
 from visualization_msgs.msg import Marker
 from visualization_msgs.msg import MarkerArray
+from simple_camera.srv import EnableBlobDetection
+from simple_camera.srv import EnableTagKnownCheck
 
 
 class Explorer:
@@ -27,6 +29,7 @@ class Explorer:
     def __init__(self):
         rospy.init_node('explorer', anonymous=True)
         
+        self.marker_array = None
         self.is_navigating = False
         self.is_searching_unknown_space = False
         self.robot_pose_available = False
@@ -79,9 +82,13 @@ class Explorer:
         
         rospy.wait_for_service('find_unkown_service')
         rospy.wait_for_service('find_unseen_service')
+        rospy.wait_for_service('enable_blob_detection_service')
+        rospy.wait_for_service('enable_tag_known_check_service')
 
         self.find_unknown_service = rospy.ServiceProxy('find_unkown_service', FindUnknown)
         self.find_unseen_service = rospy.ServiceProxy('find_unseen_service', FindUnseen)
+        self.enable_blob_detection_service = rospy.ServiceProxy('enable_blob_detection_service', EnableBlobDetection)
+        self.enable_tag_known_check_service = rospy.ServiceProxy('enable_tag_known_check_service', EnableTagKnownCheck)
 
         self.received_map = False
 
@@ -191,12 +198,17 @@ class Explorer:
     
     def run(self):
         start = time.time()
+        bool_blob = Bool()
+        bool_blob.data = True
+        bool_tag = Bool()
+        bool_tag.data = True
+        self.enable_blob_detection_service(bool_blob)
+        self.enable_tag_known_check_service(bool_tag)
         while not rospy.is_shutdown():
             if self.map_complete == False or self.map_camera_complete == False:
                 if not self.map_complete_print and self.map_complete:
                     self.map_complete_print = True
                     print "---> MAPPING COMPLETE <---"
-                
                 if self.robot_pose_available and not self.is_navigating and not self.is_searching_unknown_space and self.received_map:    
                     if(self.waypointsAvailable == True):
                         self._navigate()
@@ -438,36 +450,54 @@ class Explorer:
             self.is_navigating = False
 
     def _publish_list(self, list):
-        markerArray = MarkerArray()
+        
+        markerArray = self._create_marker_array(list, 0.075,0.35, 0.35, 0.85)
+                
+        if self.marker_array != None:
+            for oldmarker in self.marker_array.markers:
+                oldmarker.action = Marker.DELETE
+            self.marker_waypoint_publisher.publish(self.marker_array)
+            rospy.sleep(0.01)
 
+        self.marker_array = markerArray
+        self.marker_waypoint_publisher.publish(self.marker_array)
+        rospy.sleep(0.01)
+
+    def _create_marker_array(self, list, size, red, green, blue):
+        markerArray = MarkerArray()
         for point in list:
+            try:
+                x = point.path_x
+                y = point.path_y
+            except:
+                try:
+                    y, x = point
+                except:
+                    print("An exception occurred")
             marker = Marker()
             marker.header.frame_id = "/map"
-            marker.type = marker.SPHERE
-            marker.action = marker.ADD
-            marker.scale.x = 0.075
-            marker.scale.y = 0.075
-            marker.scale.z = 0.075
-            marker.color.r = 1.0
-            marker.color.g = 0.0
-            marker.color.b = 0.0
+            marker.type = Marker.SPHERE
+            marker.action = Marker.ADD
+            marker.scale.x = size
+            marker.scale.y = size
+            marker.scale.z = size
+            marker.color.r = red
+            marker.color.g = green
+            marker.color.b = blue
             marker.color.a = 1.0
             marker.pose.orientation.w = 1.0
-            marker.pose.position.x = (point.path_x * self.map_resolution) + self.map_offset_x
-            marker.pose.position.y = (point.path_y * self.map_resolution) + self.map_offset_y 
+            marker.pose.position.x = (x * self.map_resolution) + self.map_offset_x
+            marker.pose.position.y = (y * self.map_resolution) + self.map_offset_y 
             marker.pose.position.z = 1
 
             markerArray.markers.append(marker)
-            print "newmarker"
 
         id = 0
         for m in markerArray.markers:
             m.id = id
             id += 1
 
-        self.marker_waypoint_publisher.publish(markerArray)
-        print "pub markser"
-        rospy.sleep(0.01)
+        return markerArray
 
 if __name__ == '__main__':
     try:
