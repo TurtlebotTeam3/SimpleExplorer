@@ -6,6 +6,7 @@ import actionlib
 import tf
 import copy
 import math
+import actionlib
 from std_msgs.msg import String, Bool
 from nav_msgs.msg import OccupancyGrid, Odometry, MapMetaData
 from sensor_msgs.msg._LaserScan import LaserScan
@@ -15,6 +16,8 @@ from path_planing.srv import FindUnknown, FindUnseen
 from visualization_msgs.msg import Marker, MarkerArray
 from simple_camera.srv import EnableBlobDetection, EnableTagKnownCheck
 from simple_odom.msg import CustomPose, PoseConverted
+from path_drive.msg import PathDriveAction, PathDriveActionGoal, PathDriveActionResult
+
 
 class Explorer:
 
@@ -42,22 +45,20 @@ class Explorer:
         self.pose = Pose()
         self.pose_converted = PoseConverted()
 
-        self.pub_goal = rospy.Publisher('/move_to_goal/goal', Pose, queue_size=1)
         self.pub_seen_map = rospy.Publisher('/camera_seen_map', OccupancyGrid, queue_size=1)
         self.marker_waypoint_publisher = rospy.Publisher('waypoint_marker_array', MarkerArray, queue_size=1)
 
         self.pose_subscriber = rospy.Subscriber('/simple_odom_pose', CustomPose, self._handle_update_pose)
-        self.sub_goal_reached = rospy.Subscriber('/move_to_goal/reached', Bool, self._goal_reached_callback)
         
         rospy.wait_for_service('find_unkown_service')
         rospy.wait_for_service('find_unseen_service')
-        #rospy.wait_for_service('enable_blob_detection_service')
-        #rospy.wait_for_service('enable_tag_known_check_service')
 
         self.find_unknown_service = rospy.ServiceProxy('find_unkown_service', FindUnknown)
         self.find_unseen_service = rospy.ServiceProxy('find_unseen_service', FindUnseen)
-        #self.enable_blob_detection_service = rospy.ServiceProxy('enable_blob_detection_service', EnableBlobDetection)
-        #self.enable_tag_known_check_service = rospy.ServiceProxy('enable_tag_known_check_service', EnableTagKnownCheck)
+
+        print "wait"
+        self.client = actionlib.SimpleActionClient('path_drive_server', PathDriveAction)
+        self.client.wait_for_server()
 
         self._setup()
         rospy.loginfo("--- ready ---")
@@ -69,12 +70,6 @@ class Explorer:
     
     def run(self):
         start = time.time()
-        #bool_blob = Bool()
-        #bool_blob.data = True
-        #bool_tag = Bool()
-        #bool_tag.data = True
-        #self.enable_blob_detection_service(bool_blob)
-        #self.enable_tag_known_check_service(bool_tag)
         
         while not rospy.is_shutdown():
             if self.map_complete == False or self.map_camera_complete == False:
@@ -142,44 +137,21 @@ class Explorer:
         # when success the process next
         self.is_navigating = True
 
-        if(len(self.waypoints) > 0):
-            print(self.waypoints)
-            point = self.waypoints.pop(0)
-            x = point.path_x
-            y = point.path_y
+        goal = PathDriveActionGoal()
 
-            print(self.waypoints)
+        #print goal
+        goal.goal.waypoints.fullpath = self.waypoints
+        #print goal
 
-            # -- move to goal --
-            self._move(x, y)
+        self.client.send_goal(goal.goal)
 
-        else:
-            self.is_navigating = False
-            self.waypointsAvailable = False
+        self.client.wait_for_result()
 
-    def _move(self, x, y):
-        """
-        Moves the rob2t to a place defined by coordinates x and y.
-        """
-        print('Navigate to: ' + str(x) + ' | ' + str(y))
-        goal = Pose()
+        print self.client.get_result()
 
-        target_x = (x * self.map_info.resolution) + self.map_info.origin.position.x
-        target_y = (y * self.map_info.resolution) + self.map_info.origin.position.y
-
-        goal.position.x = target_x
-        goal.position.y = target_y
-        goal.orientation.w = 1
-
-        self.pub_goal.publish(goal)
-
-    def _goal_reached_callback(self, reached):
-        print('Reached: ' + str(reached))
-        if reached:
-            self._navigate()
-        else:
-            self.waypoints = []
-            self.is_navigating = False
+        self.waypoints = []
+        self.is_navigating = False
+        self.waypointsAvailable = False
 
     def _publish_list(self, list):
         
