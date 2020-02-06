@@ -6,7 +6,6 @@ import actionlib
 import tf
 import copy
 import math
-import actionlib
 from std_msgs.msg import String, Bool
 from nav_msgs.msg import OccupancyGrid, Odometry, MapMetaData
 from sensor_msgs.msg._LaserScan import LaserScan
@@ -56,7 +55,6 @@ class Explorer:
         self.find_unknown_service = rospy.ServiceProxy('find_unkown_service', FindUnknown)
         self.find_unseen_service = rospy.ServiceProxy('find_unseen_service', FindUnseen)
 
-        print "wait"
         self.client = actionlib.SimpleActionClient('path_drive_server', PathDriveAction)
         self.client.wait_for_server()
 
@@ -133,21 +131,18 @@ class Explorer:
             self.robot_pose_available = True
 
     def _navigate(self):
-        # get waypoint and start moving towards it
-        # when success the process next
+        """
+        Navigating to the waypoints
+        """
         self.is_navigating = True
 
         goal = PathDriveActionGoal()
 
-        #print goal
         goal.goal.waypoints.fullpath = self.waypoints
-        #print goal
 
         self.client.send_goal(goal.goal)
 
         self.client.wait_for_result()
-
-        print self.client.get_result()
 
         self.waypoints = []
         self.is_navigating = False
