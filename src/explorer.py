@@ -8,7 +8,7 @@ import copy
 import math
 from std_msgs.msg import String, Bool
 from nav_msgs.msg import OccupancyGrid, Odometry, MapMetaData
-from sensor_msgs.msg._LaserScan import LaserScan
+from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import Pose
 from path_planing.msg import PathPoint, FullPath
 from path_planing.srv import FindUnknown, FindUnseen
@@ -43,7 +43,6 @@ class Explorer:
         self.pose_converted = PoseConverted()
 
         self.pub_seen_map = rospy.Publisher('camera_seen_map', OccupancyGrid, queue_size=1)
-        self.marker_waypoint_publisher = rospy.Publisher('waypoint_marker_array', MarkerArray, queue_size=1)
 
         self.pose_subscriber = rospy.Subscriber('simple_odom_pose', CustomPose, self._handle_update_pose)
         
