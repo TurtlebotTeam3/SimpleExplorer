@@ -12,7 +12,6 @@ from sensor_msgs.msg._LaserScan import LaserScan
 from geometry_msgs.msg import Pose
 from path_planing.msg import PathPoint, FullPath
 from path_planing.srv import FindUnknown, FindUnseen
-from visualization_msgs.msg import Marker, MarkerArray
 from simple_camera.srv import EnableBlobDetection, EnableTagKnownCheck
 from simple_odom.msg import CustomPose, PoseConverted
 from path_drive.msg import PathDriveAction, PathDriveActionGoal, PathDriveActionResult
@@ -23,7 +22,6 @@ class Explorer:
     def __init__(self):
         rospy.init_node('explorer', anonymous=True)
         
-        self.marker_array = None
         self.is_navigating = False
         self.is_searching_unknown_space = False
         self.robot_pose_available = False
@@ -115,9 +113,7 @@ class Explorer:
                 self.map_complete = True
             else:
                 self.map_camera_complete = True
-        else: 
-            self._publish_list(self.waypoints)
-            
+        else:            
             self.waypointsAvailable = True
         
         self.is_searching_unknown_space = False
@@ -147,56 +143,6 @@ class Explorer:
         self.waypoints = []
         self.is_navigating = False
         self.waypointsAvailable = False
-
-    def _publish_list(self, list):
-        
-        markerArray = self._create_marker_array(list, 0.075,0.35, 0.35, 0.85)
-                
-        if self.marker_array != None:
-            for oldmarker in self.marker_array.markers:
-                oldmarker.action = Marker.DELETE
-            self.marker_waypoint_publisher.publish(self.marker_array)
-            rospy.sleep(0.01)
-
-        self.marker_array = markerArray
-        self.marker_waypoint_publisher.publish(self.marker_array)
-        rospy.sleep(0.01)
-
-    def _create_marker_array(self, list, size, red, green, blue):
-        markerArray = MarkerArray()
-        for point in list:
-            try:
-                x = point.path_x
-                y = point.path_y
-            except:
-                try:
-                    y, x = point
-                except:
-                    print("An exception occurred")
-            marker = Marker()
-            marker.header.frame_id = "/map"
-            marker.type = Marker.SPHERE
-            marker.action = Marker.ADD
-            marker.scale.x = size
-            marker.scale.y = size
-            marker.scale.z = size
-            marker.color.r = red
-            marker.color.g = green
-            marker.color.b = blue
-            marker.color.a = 1.0
-            marker.pose.orientation.w = 1.0
-            marker.pose.position.x = (x * self.map_info.resolution) + self.map_info.origin.position.x
-            marker.pose.position.y = (y * self.map_info.resolution) + self.map_info.origin.position.y 
-            marker.pose.position.z = 1
-
-            markerArray.markers.append(marker)
-
-        id = 0
-        for m in markerArray.markers:
-            m.id = id
-            id += 1
-
-        return markerArray
 
 if __name__ == '__main__':
     try:
