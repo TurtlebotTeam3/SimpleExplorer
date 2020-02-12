@@ -44,10 +44,10 @@ class Explorer:
         self.pose = Pose()
         self.pose_converted = PoseConverted()
 
-        self.pub_seen_map = rospy.Publisher('/camera_seen_map', OccupancyGrid, queue_size=1)
+        self.pub_seen_map = rospy.Publisher('camera_seen_map', OccupancyGrid, queue_size=1)
         self.marker_waypoint_publisher = rospy.Publisher('waypoint_marker_array', MarkerArray, queue_size=1)
 
-        self.pose_subscriber = rospy.Subscriber('/simple_odom_pose', CustomPose, self._handle_update_pose)
+        self.pose_subscriber = rospy.Subscriber('simple_odom_pose', CustomPose, self._handle_update_pose)
         
         rospy.wait_for_service('find_unkown_service')
         rospy.wait_for_service('find_unseen_service')
