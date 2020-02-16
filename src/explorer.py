@@ -6,6 +6,8 @@ import actionlib
 import tf
 import copy
 import math
+import os
+import subprocess
 from std_msgs.msg import String, Bool
 from nav_msgs.msg import OccupancyGrid, Odometry, MapMetaData
 from sensor_msgs.msg import LaserScan
@@ -83,6 +85,8 @@ class Explorer:
                     self.all_maps_complete_printed = True
                     print('--> All complete <--')
                     print('--- Duration: ' + str(end-start) + 'sec ---')
+                    print('--- Saving map ---')
+                    subprocess.Popen(['rosrun', 'map_server', 'map_saver', '-f', 'map'], cwd=os.path.expanduser('~') + "/catkin_ws/src/turtlebot3/turtlebot3_navigation/maps/mymap/")
 
         end = time.time()
         self.all_maps_complete_printed = True
