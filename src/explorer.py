@@ -44,21 +44,27 @@ class Explorer:
         self.pose = Pose()
         self.pose_converted = PoseConverted()
 
+        rospy.loginfo('setup publisher')
         self.pub_seen_map = rospy.Publisher('camera_seen_map', OccupancyGrid, queue_size=1)
-
+        
+        rospy.loginfo('setup subscriber')
         self.pose_subscriber = rospy.Subscriber('simple_odom_pose', CustomPose, self._handle_update_pose)
         
+        rospy.loginfo('wait find_unkown_service')
         rospy.wait_for_service('find_unkown_service')
+
+        rospy.loginfo('wait find_unseen_service')
         rospy.wait_for_service('find_unseen_service')
 
+        rospy.loginfo('setup services')
         self.find_unknown_service = rospy.ServiceProxy('find_unkown_service', FindUnknown)
         self.find_unseen_service = rospy.ServiceProxy('find_unseen_service', FindUnseen)
-
+        rospy.loginfo('action client')
         self.client = actionlib.SimpleActionClient('path_drive_server', PathDriveAction)
         self.client.wait_for_server()
-
+        rospy.loginfo('setup')
         self._setup()
-        rospy.loginfo("--- ready ---")
+        rospy.loginfo('ready')
         self.rate = rospy.Rate(20)
 
     def _setup(self):
@@ -72,7 +78,7 @@ class Explorer:
             if self.map_complete == False or self.map_camera_complete == False:
                 if not self.map_complete_print and self.map_complete:
                     self.map_complete_print = True
-                    print "---> MAPPING COMPLETE <---"
+                    rospy.loginfo("---> MAPPING COMPLETE <---")
                 if self.robot_pose_available and not self.is_navigating and not self.is_searching_unknown_space:    
                     if(self.waypointsAvailable == True):
                         self._navigate()
@@ -83,19 +89,19 @@ class Explorer:
                 if not self.all_maps_complete_printed:
                     end = time.time()
                     self.all_maps_complete_printed = True
-                    print('--> All complete <--')
-                    print('--- Duration: ' + str(end-start) + 'sec ---')
-                    print('--- Saving map ---')
+                    rospy.loginfo('--> All complete <--')
+                    rospy.loginfo('--- Duration: ' + str(end-start) + 'sec ---')
+                    rospy.loginfo('--- Saving map ---')
                     subprocess.Popen(['rosrun', 'map_server', 'map_saver', '-f', 'map'], cwd=os.path.expanduser('~') + "/catkin_ws/src/turtlebot3/turtlebot3_navigation/maps/mymap/")
 
         end = time.time()
         self.all_maps_complete_printed = True
-        print('--> All complete <--')
-        print('--- Duration: ' + str(end-start) + 'sec ---')
+        rospy.loginfo('--> All complete <--')
+        rospy.loginfo('--- Duration: ' + str(end-start) + 'sec ---')
 
 
     def _calculate(self):
-        print('Calculating freespace')
+        rospy.loginfo('Calculating freespace')
 
         self.is_searching_unknown_space = True
 

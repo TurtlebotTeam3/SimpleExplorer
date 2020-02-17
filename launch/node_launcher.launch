@@ -1,4 +1,0 @@
-<launch>
-<node pkg="simple_explorer" type="explorer.py" name="Simple Explorer" output="screen">
-</node>
-</launch>
