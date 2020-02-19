@@ -43,9 +43,6 @@ class Explorer:
 
         self.pose = Pose()
         self.pose_converted = PoseConverted()
-
-        rospy.loginfo('setup publisher')
-        self.pub_seen_map = rospy.Publisher('camera_seen_map', OccupancyGrid, queue_size=1)
         
         rospy.loginfo('setup subscriber')
         self.pose_subscriber = rospy.Subscriber('simple_odom_pose', CustomPose, self._handle_update_pose)
