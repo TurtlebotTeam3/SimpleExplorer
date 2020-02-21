@@ -21,5 +21,7 @@
 
     <node pkg="path_drive" type="server.py" name="path_drive_server" output="screen"/>
 
-    <node pkg="simple_explorer" type="explorer.py" name="simple_explorer" output="screen"/>
+    <node pkg="simple_explorer" type="explorer.py" name="simple_explorer" output="screen">
+        <param name="map_folder" value="/catkin_ws/src/turtlebot3/turtlebot3_navigation/maps/mymap/"/>
+    </node>
 </launch>

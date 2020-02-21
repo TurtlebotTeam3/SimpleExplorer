@@ -44,6 +44,8 @@ class Explorer:
         self.pose = Pose()
         self.pose_converted = PoseConverted()
         
+        self.folder = rospy.get_param("~map_folder",default="/catkin_ws/src/turtlebot3/turtlebot3_navigation/maps/mymap/")
+
         rospy.loginfo('setup subscriber')
         self.pose_subscriber = rospy.Subscriber('simple_odom_pose', CustomPose, self._handle_update_pose)
         
@@ -89,7 +91,7 @@ class Explorer:
                     rospy.loginfo('--> All complete <--')
                     rospy.loginfo('--- Duration: ' + str(end-start) + 'sec ---')
                     rospy.loginfo('--- Saving map ---')
-                    subprocess.Popen(['rosrun', 'map_server', 'map_saver', '-f', 'map'], cwd=os.path.expanduser('~') + "/catkin_ws/src/turtlebot3/turtlebot3_navigation/maps/mymap/")
+                    subprocess.Popen(['rosrun', 'map_server', 'map_saver', '-f', 'map'], cwd=os.path.expanduser('~') + self.folder)
 
         end = time.time()
         self.all_maps_complete_printed = True
