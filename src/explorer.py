@@ -46,27 +46,37 @@ class Explorer:
         
         self.folder = rospy.get_param("~map_folder",default="/catkin_ws/src/turtlebot3/turtlebot3_navigation/maps/mymap/")
 
+        # --- Subscriber ---
         rospy.loginfo('setup subscriber')
         self.pose_subscriber = rospy.Subscriber('simple_odom_pose', CustomPose, self._handle_update_pose)
         
+        # --- Service wait ---
         rospy.loginfo('wait find_unkown_service')
         rospy.wait_for_service('find_unkown_service')
 
         rospy.loginfo('wait find_unseen_service')
         rospy.wait_for_service('find_unseen_service')
 
+        # --- service connect ---
         rospy.loginfo('setup services')
         self.find_unknown_service = rospy.ServiceProxy('find_unkown_service', FindUnknown)
         self.find_unseen_service = rospy.ServiceProxy('find_unseen_service', FindUnseen)
+        
+        # --- Action server connect ---
         rospy.loginfo('action client')
         self.client = actionlib.SimpleActionClient('path_drive_server', PathDriveAction)
         self.client.wait_for_server()
+
         rospy.loginfo('setup')
         self._setup()
+        
         rospy.loginfo('ready')
         self.rate = rospy.Rate(20)
 
     def _setup(self):
+        """
+        Get map meta data
+        """
         map = rospy.wait_for_message('map', OccupancyGrid)
         self.map_info = map.info
     
@@ -100,6 +110,9 @@ class Explorer:
 
 
     def _calculate(self):
+        """
+        Calculate where to drive next by calling the path planing
+        """
         rospy.loginfo('Calculating freespace')
 
         self.is_searching_unknown_space = True
@@ -136,7 +149,7 @@ class Explorer:
 
     def _navigate(self):
         """
-        Navigating to the waypoints
+        Navigating to the waypoints.
         """
         self.is_navigating = True
 
